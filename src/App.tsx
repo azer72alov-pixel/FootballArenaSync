@@ -1,22 +1,15 @@
-import React, { useEffect, useState } from 'react';
-import { COURTS } from './constants';
-import { TRANSLATIONS } from './translations';
-import Layout from './components/Layout';
-
-const App: React.FC = () => {
-  const [language, setLanguage] = useState<'en' | 'ru'>('en');
-
-  useEffect(() => {
-    const tg = (window as any).Telegram?.WebApp;
-    if (tg) {
-      tg.ready();
-      tg.expand();
-    }
-  }, []);
-
-  return (
-    <Layout language={language} setLanguage={setLanguage} courts={COURTS} translations={TRANSLATIONS} />
-  );
-};
-
-export default App;
+return (
+  <Layout
+    language={language}
+    setLanguage={setLanguage}
+    courts={COURTS}
+    translations={TRANSLATIONS}
+  >
+    {/* Основной UI */}
+    <AdminDashboard />
+    <Calendar />
+    {COURTS.map(court => <CourtCard key={court.id} court={court} />)}
+    <SubscriptionPanel />
+    <TimeGrid />
+  </Layout>
+);
