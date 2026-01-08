@@ -69,8 +69,8 @@ const App: React.FC = () => {
     if (view === 'home') {
         const fetchTip = async () => {
         const prompt = lang === 'az' 
-            ? "Futbol ГјГ§Гјn hЙ™ftЙ™sonu oyunu axtarД±ram" 
-            : "РС‰Сѓ РјРµСЃС‚Рѕ РґР»СЏ РёРіСЂС‹ РІ С„СѓС‚Р±РѕР» РЅР° РІС‹С…РѕРґРЅС‹С…";
+            ? "Futbol üçün həftəsonu oyunu axtarıram" 
+            : "Ищу место для игры в футбол на выходных";
         const tip = await getSmartRecommendation(prompt, lang);
         setAiTip(tip || "");
         };
@@ -236,7 +236,7 @@ const App: React.FC = () => {
         : (selectedCourt ? selectedCourt.pricePerHour : 0);
       
       const label = isSub ? t.completeBooking : t.bookNow;
-      const text = `${label} - ${price}в‚ј`;
+      const text = `${label} - ${price}₼`;
       
       tg.MainButton.text = text;
       tg.MainButton.color = "#4f46e5";
@@ -320,14 +320,14 @@ const App: React.FC = () => {
                     </svg>
                 </div>
                 <h2 className="text-2xl font-bold text-slate-900 mb-2">{t.partnerAccess}</h2>
-                <p className="text-slate-500 mb-6 text-sm">{lang === 'az' ? 'Obyekt PIN kodunu daxil edin' : 'Р’РІРµРґРёС‚Рµ PIN-РєРѕРґ РѕР±СЉРµРєС‚Р°'}</p>
+                <p className="text-slate-500 mb-6 text-sm">{lang === 'az' ? 'Obyekt PIN kodunu daxil edin' : 'Введите PIN-код объекта'}</p>
                 
                 <input 
                     type="password" 
                     value={adminPin}
                     onChange={(e) => setAdminPin(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-center text-2xl tracking-widest font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-6"
-                    placeholder="вЂўвЂўвЂўвЂў"
+                    placeholder="••••"
                     maxLength={4}
                 />
                 
@@ -335,13 +335,13 @@ const App: React.FC = () => {
                     onClick={handleAdminAuth}
                     className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl hover:bg-slate-800 transition-all shadow-lg"
                 >
-                    {lang === 'az' ? 'Daxil ol' : 'Р’РѕР№С‚Рё'}
+                    {lang === 'az' ? 'Daxil ol' : 'Войти'}
                 </button>
                 <button 
                     onClick={handleBack}
                     className="mt-4 text-sm font-medium text-slate-400 hover:text-slate-600"
                 >
-                    {lang === 'az' ? 'LЙ™Дџv et' : 'РћС‚РјРµРЅР°'}
+                    {lang === 'az' ? 'Ləğv et' : 'Отмена'}
                 </button>
             </div>
         </div>
@@ -516,7 +516,7 @@ const App: React.FC = () => {
                              <span className="text-xl font-black text-indigo-600">
                                 {view === 'subscription' && selectedSubscription 
                                     ? selectedSubscription.price 
-                                    : selectedCourt.pricePerHour}в‚ј
+                                    : selectedCourt.pricePerHour}₼
                              </span>
                         </div>
                     </div>
@@ -585,7 +585,7 @@ const App: React.FC = () => {
                                                 <span>
                                                     {view === 'subscription' && selectedSubscription 
                                                         ? selectedSubscription.price 
-                                                        : selectedCourt.pricePerHour} в‚ј
+                                                        : selectedCourt.pricePerHour} ₼
                                                 </span>
                                             )}
                                         </button>
