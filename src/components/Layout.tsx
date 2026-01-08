@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Court } from '../types';
 
@@ -6,15 +7,14 @@ interface LayoutProps {
   setLanguage: (lang: 'en' | 'ru') => void;
   courts: Court[];
   translations: any;
-  children: React.ReactNode;
+  children?: React.ReactNode;  // <- добавляем children
 }
 
 const Layout: React.FC<LayoutProps> = ({
   language,
   setLanguage,
-  courts,
   translations,
-  children,
+  children
 }) => {
   const t = translations[language];
 
@@ -27,9 +27,8 @@ const Layout: React.FC<LayoutProps> = ({
           Switch Language
         </button>
       </header>
-
       <main>
-        {children}
+        {children}  {/* <- основной интерфейс рендерится здесь */}
       </main>
     </div>
   );
