@@ -1,108 +1,186 @@
- import React, { useEffect, useState } from 'react';
-import { BUSINESS_HOURS } from '../constants';
-import { TRANSLATIONS } from '../translations';
+  import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import Layout from './components/Layout';
+import CourtCard from './components/CourtCard';
+import Calendar from './components/Calendar';
+import TimeGrid from './components/TimeGrid';
+import SubscriptionPanel from './components/SubscriptionPanel';
+import AdminDashboard from './components/AdminDashboard';
+import { COURTS } from './constants';
+import { Court, Subscription } from './types';
+import { TRANSLATIONS } from './translations';
 
-interface TimeGridProps {
-  selectedHour: number | null;
-  onHourSelect?: (hour: number) => void;
-  lang: 'az' | 'ru';
-  reservedHours?: number[];
-  dayBookings?: { hour: number; type: string }[];
-}
+const App: React.FC = () => {
+  const tg = window.Telegram?.WebApp;
 
-const TimeGrid: React.FC<TimeGridProps> = ({
-  selectedHour,
-  onHourSelect,
-  lang,
-  reservedHours,
-  dayBookings
-}) => {
-  const t = TRANSLATIONS[lang];
+  const [lang, setLang] = useState<'az' | 'ru'>('az');
+  const [view, setView] = useState<
+    'home' | 'search' | 'booking' | 'subscription' | 'admin_login' | 'admin_dashboard'
+  >('home');
 
-  // ✅ ВНУТРЕННЕЕ СОСТОЯНИЕ (КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ)
-  const [localSelectedHour, setLocalSelectedHour] = useState<number | null>(null);
+  const [bookingStep, setBookingStep] = useState<'date' | 'time'>('date');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCourt, setSelectedCourt] = useState<Court | null>(null);
+  const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
+  const [activeImage, setActiveImage] = useState('');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedHour, setSelectedHour] = useState<number | null>(null);
+  const [reservedHours, setReservedHours] = useState<number[]>([]);
+  const [isBooking, setIsBooking] = useState(false);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
 
-  // синхронизация с родителем (если он всё-таки меняет state)
+  // admin
+  const [managedCourtId, setManagedCourtId] = useState<string | null>(null);
+  const [adminPin, setAdminPin] = useState('');
+
   useEffect(() => {
-    setLocalSelectedHour(selectedHour ?? null);
-  }, [selectedHour]);
-
-  const handleSelect = (hour: number, isReserved: boolean) => {
-    if (isReserved) return;
-
-    setLocalSelectedHour(hour);
-
-    if (onHourSelect) {
-      onHourSelect(hour);
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      const userLang = tg.initDataUnsafe?.user?.language_code;
+      if (userLang === 'ru' || userLang === 'az') {
+        setLang(userLang);
+      }
     }
+  }, []);
+
+  const t = TRANSLATIONS[lang];
+  const locale = lang === 'az' ? 'az-AZ' : 'ru-RU';
+  const isTg = !!tg?.initDataUnsafe;
+
+  useEffect(() => {
+    if (selectedCourt && selectedDate) {
+      const day = selectedDate.getDate();
+      const mock: number[] = [];
+      if (day % 2 === 0) mock.push(19, 20, 21);
+      else mock.push(9, 10, 11);
+      setReservedHours(mock);
+      if (selectedHour && mock.includes(selectedHour)) setSelectedHour(null);
+    }
+  }, [selectedCourt, selectedDate, selectedHour]);
+
+  const filteredCourts = useMemo(
+    () =>
+      COURTS.filter(c =>
+        `${c.name} ${c.address} ${c.type}`.toLowerCase().includes(searchTerm.toLowerCase())
+      ),
+    [searchTerm]
+  );
+
+  const handleBack = useCallback(() => {
+    if (bookingStep === 'time') {
+      setBookingStep('date');
+      return;
+    }
+    setView('home');
+    setSelectedCourt(null);
+    setSelectedSubscription(null);
+    setSelectedHour(null);
+    setBookingSuccess(false);
+    setBookingStep('date');
+    setManagedCourtId(null);
+    setAdminPin('');
+  }, [bookingStep]);
+
+  useEffect(() => {
+    if (!tg) return;
+    if (view !== 'home') {
+      tg.BackButton.show();
+      tg.BackButton.onClick(handleBack);
+    } else tg.BackButton.hide();
+    return () => tg.BackButton.offClick(handleBack);
+  }, [view, handleBack]);
+
+  const handleCourtSelect = (court: Court) => {
+    setSelectedCourt(court);
+    setActiveImage(court.image);
+    setView('booking');
+    setBookingStep('date');
   };
 
-  const periods = [
-    { label: t.morning, hours: BUSINESS_HOURS.filter(h => h < 12) },
-    { label: t.afternoon, hours: BUSINESS_HOURS.filter(h => h >= 12 && h < 17) },
-    { label: t.evening, hours: BUSINESS_HOURS.filter(h => h >= 17) },
-  ];
+  const handleDateSelection = (date: Date) => {
+    setSelectedDate(date);
+    setBookingStep('time');
+  };
+
+  const handleBook = () => {
+    if (!selectedCourt || selectedHour === null) return;
+    setIsBooking(true);
+    setTimeout(() => {
+      setIsBooking(false);
+      setBookingSuccess(true);
+    }, 1200);
+  };
 
   return (
-    <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-6 h-full flex flex-col">
-      <h3 className="text-xl font-bold text-slate-900 mb-6">
-        {t.availableTimes}
-      </h3>
+    <Layout lang={lang} onLangChange={setLang}>
+      {view === 'home' && (
+        <>
+          <section className="mb-12">
+            <h1 className="text-3xl font-black">{t.heroTitlePart1}</h1>
+            <p className="text-slate-500">{t.heroDesc}</p>
+          </section>
 
-      <div className="flex-grow space-y-6 overflow-y-auto pr-1">
-        {periods.map((period, idx) => (
-          period.hours.length > 0 && (
-            <div key={idx}>
-              <h4 className="text-xs font-bold text-slate-400 uppercase mb-3">
-                {period.label}
-              </h4>
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {COURTS.map(court => (
+              <CourtCard
+                key={court.id}
+                court={court}
+                isSelected={false}
+                onSelect={handleCourtSelect}
+                lang={lang}
+              />
+            ))}
+          </section>
 
-              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                {period.hours.map(hour => {
-                  const isSelected = localSelectedHour === hour;
+          <SubscriptionPanel onSubscribe={sub => {
+            setSelectedSubscription(sub);
+            setSelectedCourt(COURTS[0]);
+            setView('subscription');
+          }} lang={lang} />
+        </>
+      )}
 
-                  const detailBooking = dayBookings?.find(b => b.hour === hour);
-                  const isSimpleReserved = reservedHours?.includes(hour);
-                  const isReserved = !!detailBooking || !!isSimpleReserved;
-                  const isSubscription = detailBooking?.type === 'subscription';
+      {(view === 'booking' || view === 'subscription') && selectedCourt && (
+        <>
+          {bookingStep === 'date' && (
+            <Calendar
+              selectedDate={selectedDate}
+              onDateChange={handleDateSelection}
+              lang={lang}
+            />
+          )}
 
-                  let btnClass =
-                    'py-3 rounded-xl text-center border-2 transition-all ';
+          {bookingStep === 'time' && (
+            <TimeGrid
+              selectedHour={selectedHour}
+              onHourSelect={setSelectedHour}
+              reservedHours={reservedHours}
+              lang={lang}
+            />
+          )}
+        </>
+      )}
 
-                  if (isSelected) {
-                    btnClass += 'bg-indigo-600 text-white border-indigo-600';
-                  } else if (isReserved) {
-                    btnClass += isSubscription
-                      ? 'bg-purple-100 text-purple-600 border-purple-200 cursor-not-allowed'
-                      : 'bg-red-100 text-red-500 border-red-200 cursor-not-allowed';
-                  } else {
-                    btnClass +=
-                      'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100';
-                  }
+      {!isTg && selectedCourt && selectedHour !== null && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-black text-white p-4 rounded-xl">
+          <button onClick={handleBook} disabled={isBooking}>
+            {isBooking ? '...' : t.completeBooking}
+          </button>
+        </div>
+      )}
 
-                  return (
-                    <button
-                      key={hour}
-                      type="button"
-                      className={btnClass}
-                      onClick={() => handleSelect(hour, isReserved)}
-                    >
-                      <div className="font-bold">
-                        {hour % 12 || 12}:00
-                      </div>
-                      <div className="text-[10px]">
-                        {hour >= 12 ? 'PM' : 'AM'}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )
-        ))}
-      </div>
-    </div>
+      {bookingSuccess && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-xl text-center">
+            <h2 className="text-xl font-bold">{t.successTitle}</h2>
+            <button onClick={handleBack} className="mt-4">
+              {t.backToDashboard}
+            </button>
+          </div>
+        </div>
+      )}
+    </Layout>
   );
 };
 
-export default TimeGrid;
+export default App;                 
