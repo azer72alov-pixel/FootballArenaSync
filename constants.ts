@@ -14,9 +14,9 @@ export const COURTS: Court[] = [
       'https://images.unsplash.com/photo-1624880357913-a8539238245b?auto=format&fit=crop&q=80&w=1200'  // Evening view
     ],
     address: '47-ci məhəllə, Sumqayıt',
-    mapUrl: 'https://www.google.com/maps/search/?api=1&query=Sumqayıt+Paralimpiya+Kompleksi',
+    mapUrl: 'https://www.google.com/maps/search/?api=1&query=40.561896,49.696804',
     description: '47-ci məhəllədə yaşayış binalarının əhatəsində yerləşən professional süni örtüklü futbol meydançası. Şəhər mühitində idman üçün ən ideal seçimdir.',
-    pin: '1001' // Unique PIN
+    pin: '1001' // Unique PIN for Court 1
   },
   {
     id: 's2',
@@ -33,7 +33,7 @@ export const COURTS: Court[] = [
     address: '17-ci mikrorayon, Sumqayıt',
     mapUrl: 'https://www.google.com/maps/search/?api=1&query=Sumqayıt+Olimpiya+İdman+Kompleksi',
     description: 'Şəkildə gördüyünüz müasir arxitekturaya malik əsas bina və geniş idman arenaları. Sumqayıtın ən böyük idman mərkəzi olaraq bütün şəraitlə təmin olunub.',
-    pin: '1002' // Unique PIN
+    pin: '1002' // Unique PIN for Court 2
   },
   {
     id: 's3',
@@ -50,7 +50,7 @@ export const COURTS: Court[] = [
     address: 'Sumqayıt Bulvarı',
     mapUrl: 'https://www.google.com/maps/search/?api=1&query=40.5961192,49.6826310',
     description: 'Xəzər dənizinin sahilində, təmiz hava və dəniz mənzərəsi ilə əhatə olunmuş unikal futbol meydançası.',
-    pin: '1003' // Unique PIN
+    pin: '1003' // Unique PIN for Court 3
   }
 ];
 
@@ -72,12 +72,3 @@ export const SUBSCRIPTIONS: Subscription[] = [
 ];
 
 export const BUSINESS_HOURS = Array.from({ length: 16 }, (_, i) => i + 7); // 7:00 to 22:00
-import { createClient } from 'https://esm.sh/@supabase/supabase-js'
-
-export const SUPABASE_URL = 'https://xxyeevnxxfkbdafyeexc.supabase.co'
-export const SUPABASE_KEY = 'sb_publishable_ZVE0E6RBvzYO6HdOUmD7YQ_Zq4lSmAa'
-
-export const supabase = createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-)

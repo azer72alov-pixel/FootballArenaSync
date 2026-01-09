@@ -21,6 +21,8 @@ export interface Booking {
   duration: number; // in hours
   userName: string;
   type: 'hourly' | 'subscription';
+  amount: number;
+  status: 'pending' | 'paid' | 'cancelled';
 }
 
 export interface Subscription {
@@ -75,6 +77,7 @@ export interface TelegramWebApp {
   };
   initDataUnsafe?: {
     user?: {
+      id?: number;
       first_name?: string;
       last_name?: string;
       username?: string;

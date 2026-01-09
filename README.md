@@ -1,20 +1,50 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# ArenaSync - Sports Facility Booking Platform
 
-# Run and deploy your AI Studio app
+ArenaSync is a modern, mobile-first web application for booking sports facilities (specifically football courts) in Sumqayit. It features real-time availability, subscription management, and an admin dashboard.
 
-This contains everything you need to run your app locally.
+## Features
 
-View your app in AI Studio: https://ai.studio/apps/drive/1G8BYiw3VmBSywtAGtaK94FEjnEj1Bj9R
+- **User Booking:** Browse courts, view details, select dates/times, and book slots.
+- **Subscriptions:** Monthly subscription plans for regular teams.
+- **Admin Dashboard:** Manage bookings, view revenue stats, manual booking entry, and PIN security.
+- **Multilingual:** Support for AZ, RU, and EN languages.
+- **Responsive Design:** Optimized for mobile (Telegram Web App compatible) and desktop.
 
-## Run Locally
+## Tech Stack
 
-**Prerequisites:**  Node.js
+- React 18
+- TypeScript
+- Vite
+- Tailwind CSS
+- Supabase (Database & Realtime) / Local Mock Mode
 
+## Getting Started
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+1.  **Clone or Download** the repository.
+2.  **Install Dependencies:**
+    ```bash
+    npm install
+    ```
+3.  **Run Development Server:**
+    ```bash
+    npm run dev
+    ```
+4.  **Build for Production:**
+    ```bash
+    npm run build
+    ```
+
+## Admin Access
+
+To access the Admin Panel, click "Partner Access" (or "Admin Panel" in the footer) and enter the PIN for the specific facility.
+
+**Default PINs:**
+- Sumqayıt Paralimpiya Kompleksi: `1001`
+- Sumqayıt Olimpiya İdman Kompleksi: `1002`
+- Azfar Futbol Meydançası: `1003`
+
+## Deployment
+
+This project is ready for deployment on platforms like Vercel, Netlify, or GitHub Pages.
+
+- **Vercel:** Connect your GitHub repository and Vercel will auto-detect Vite settings.
