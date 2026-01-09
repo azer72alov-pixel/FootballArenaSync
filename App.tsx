@@ -27,7 +27,7 @@ const App: React.FC = () => {
   const [reservedHours, setReservedHours] = useState<number[]>([]);
   const [dayBookings, setDayBookings] = useState<{hour: number, type: string}[]>([]);
 
-  const [aiTip, setAiTip] = useState<string>("");
+  const [aiTip, setAiTip] = useState<string>(""); // AI отключен
   const [isBooking, setIsBooking] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   
@@ -36,42 +36,40 @@ const App: React.FC = () => {
   const [managedCourtId, setManagedCourtId] = useState<string | null>(null);
   const [adminPin, setAdminPin] = useState('');
 
+  // Инициализация Telegram WebApp
   useEffect(() => {
     if (tg) {
       tg.ready();
       tg.expand();
+      
       if (tg.initDataUnsafe?.user?.language_code) {
         const userLang = tg.initDataUnsafe.user.language_code;
-        if (userLang === 'ru' || userLang === 'az') {
-          setLang(userLang);
-        }
+        if (userLang === 'ru' || userLang === 'az') setLang(userLang);
       }
+      
       if (tg.initDataUnsafe?.user?.first_name) {
-          setUserName(tg.initDataUnsafe.user.first_name + (tg.initDataUnsafe.user.last_name ? ' ' + tg.initDataUnsafe.user.last_name : ''));
+        setUserName(
+          tg.initDataUnsafe.user.first_name + 
+          (tg.initDataUnsafe.user.last_name ? ' ' + tg.initDataUnsafe.user.last_name : '')
+        );
       }
     }
   }, []);
 
   const t = TRANSLATIONS[lang];
 
+  // AI-tip полностью отключен
   useEffect(() => {
-    if (view === 'home') {
-        const fetchTip = async () => {
-        const prompt = lang === 'az' 
-            ? "Futbol üçün həftəsonu oyunu axtarıram" 
-            : "Ищу место для игры в футбол на выходных";
-        const tip = ""; // временно
-        setAiTip(tip || "");
-        };
-        fetchTip();
-    }
+    setAiTip("");
   }, [lang, view]);
 
-  // ---------------- FETCH BOOKINGS ----------------
+  // FETCH BOOKINGS FROM SUPABASE
   useEffect(() => {
     const fetchBookings = async () => {
         if (!selectedCourt) return;
+
         const dateStr = selectedDate.toISOString().split('T')[0];
+        
         const { data, error } = await supabase
             .from('bookings')
             .select('hour, type')
@@ -88,6 +86,7 @@ const App: React.FC = () => {
             setDayBookings(data.map((b: any) => ({ hour: b.hour, type: b.type })));
         }
     };
+
     fetchBookings();
   }, [selectedCourt, selectedDate, bookingSuccess]);
 
@@ -111,6 +110,7 @@ const App: React.FC = () => {
       setBookingStep('date');
       return;
     }
+
     setSearchTerm('');
     setView('home');
     setSelectedCourt(null);
@@ -128,15 +128,15 @@ const App: React.FC = () => {
   
   useEffect(() => {
     if (!tg) return;
+
     if (view !== 'home') {
       tg.BackButton.show();
       tg.BackButton.onClick(handleBack);
     } else {
       tg.BackButton.hide();
     }
-    return () => {
-      tg.BackButton.offClick(handleBack);
-    };
+
+    return () => tg.BackButton.offClick(handleBack);
   }, [view, handleBack, tg]);
 
   const handleCourtSelect = (court: Court) => {
@@ -162,7 +162,6 @@ const App: React.FC = () => {
     const rawAmount = isSub && selectedSubscription 
         ? selectedSubscription.price 
         : selectedCourt.pricePerHour;
-    
     const amount = Math.round(rawAmount);
     const dateStr = selectedDate.toISOString().split('T')[0];
 
@@ -177,16 +176,8 @@ const App: React.FC = () => {
     });
 
     if (error) {
-        console.error('Booking failed detailed error:', error);
-        let errorMsg = 'Unknown error';
-        if (typeof error === 'object' && error !== null && 'message' in error) {
-            errorMsg = (error as any).message;
-        } else if (typeof error === 'string') {
-            errorMsg = error;
-        } else {
-            errorMsg = JSON.stringify(error);
-        }
-        alert(`Booking failed: ${errorMsg}`);
+        console.error('Booking failed:', error);
+        alert('Booking failed: ' + JSON.stringify(error));
         setIsBooking(false);
         if (tg) tg.MainButton.hideProgress();
         return;
@@ -199,29 +190,6 @@ const App: React.FC = () => {
         tg.MainButton.hide();
     }
   }, [selectedHour, selectedCourt, view, selectedSubscription, selectedDate, userName, tg]);
-
-  useEffect(() => {
-    if (!tg) return;
-    if ((view === 'booking' || view === 'subscription') && selectedCourt && selectedHour && !bookingSuccess) {
-      const isSub = view === 'subscription';
-      const price = isSub && selectedSubscription 
-        ? selectedSubscription.price 
-        : (selectedCourt ? selectedCourt.pricePerHour : 0);
-      const label = isSub ? t.completeBooking : t.bookNow;
-      const text = `${label} - ${price}₼`;
-      tg.MainButton.text = text;
-      tg.MainButton.color = "#4f46e5";
-      tg.MainButton.textColor = "#ffffff";
-      tg.MainButton.show();
-      tg.MainButton.onClick(handleBook);
-      tg.MainButton.enable();
-    } else {
-      tg.MainButton.hide();
-    }
-    return () => {
-      tg.MainButton.offClick(handleBook);
-    };
-  }, [view, selectedCourt, selectedHour, bookingSuccess, handleBook, t.bookNow, t.completeBooking, selectedSubscription, tg]);
 
   const handleSubscription = (sub: Subscription) => {
     setSelectedSubscription(sub);
@@ -249,6 +217,7 @@ const App: React.FC = () => {
             break; 
         }
     }
+
     if (authorizedCourt) {
         setManagedCourtId(authorizedCourt.id);
         setAdminPin('');
@@ -265,59 +234,74 @@ const App: React.FC = () => {
 
   return (
     <Layout lang={lang} onLangChange={setLang}>
-      {/* ... ВСЯ ДРУГАЯ ЛОГИКА КОМПОНЕНТОВ ... */}
+      {/* ---------------- ADMIN DASHBOARD ---------------- */}
+      {view === 'admin_dashboard' && managedCourtId && (
+        <AdminDashboard 
+            lang={lang}
+            managedCourtId={managedCourtId}
+            allCourts={COURTS}
+            onBack={handleBack}
+        />
+      )}
 
-      {(view === 'booking' || view === 'subscription') && selectedCourt && (
-        <div className="animate-in fade-in slide-in-from-right-8 duration-500">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Left Column */}
-            <div className="lg:col-span-5 space-y-6">
-              {bookingStep === 'date' ? (
-                <Calendar selectedDate={selectedDate} onDateChange={handleDateSelection} lang={lang} />
-              ) : (
-                <div> {/* Info о корте */}</div>
-              )}
-            </div>
+      {/* ---------------- ADMIN LOGIN ---------------- */}
+      {view === 'admin_login' && (
+        <div className="flex flex-col items-center justify-center min-h-[60vh]">
+          <input 
+            type="password" 
+            value={adminPin}
+            onChange={(e) => setAdminPin(e.target.value)}
+            placeholder="PIN"
+          />
+          <button onClick={handleAdminAuth}>Login</button>
+          <button onClick={handleBack}>Cancel</button>
+        </div>
+      )}
 
-            {/* Right Column */}
-            <div className="lg:col-span-7">
-              {bookingStep === 'time' && (
-                <div className="animate-in slide-in-from-right-4 fade-in">
-                  {/* Сетка часов */}
-                  <TimeGrid 
-                      selectedHour={selectedHour} 
-                      onHourSelect={setSelectedHour} 
-                      lang={lang} 
-                      reservedHours={reservedHours}
-                      dayBookings={dayBookings}
-                  />
-
-                  {/* ----------------- VISUAL BOOKINGS ----------------- */}
-                  {dayBookings.length > 0 && (
-                    <div className="bg-white p-4 rounded-xl shadow-md mt-6 border border-slate-200">
-                      <h3 className="text-lg font-bold text-slate-900 mb-2">
-                        Брони на {selectedDate.toLocaleDateString(locale)}
-                      </h3>
-                      <ul className="text-sm text-slate-700">
-                        {dayBookings.map((b, idx) => (
-                          <li key={idx}>
-                            {b.hour}:00 — {b.type}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {/* Bottom Action Bar */}
-                  {!isTg && selectedHour && (
-                    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-40 animate-in slide-in-from-bottom-10 fade-in">
-                      {/* ... кнопка бронирования ... */}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+      {/* ---------------- HOME / SEARCH ---------------- */}
+      {(view === 'home' || view === 'search') && (
+        <div className="space-y-8">
+          <div>
+            <input 
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit()}
+              placeholder={t.searchPlaceholder}
+            />
           </div>
+
+          <div>
+            {filteredCourts.map(court => (
+              <CourtCard 
+                key={court.id} 
+                court={court} 
+                isSelected={false} 
+                onSelect={handleCourtSelect}
+                lang={lang}
+              />
+            ))}
+          </div>
+
+          {view === 'home' && <SubscriptionPanel onSubscribe={handleSubscription} lang={lang} />}
+        </div>
+      )}
+
+      {/* ---------------- BOOKING FLOW ---------------- */}
+      {(view === 'booking' || view === 'subscription') && selectedCourt && (
+        <div>
+          {bookingStep === 'date' && (
+            <Calendar selectedDate={selectedDate} onDateChange={handleDateSelection} lang={lang} />
+          )}
+          {bookingStep === 'time' && (
+            <TimeGrid 
+              selectedHour={selectedHour} 
+              onHourSelect={setSelectedHour} 
+              lang={lang} 
+              reservedHours={reservedHours}
+              dayBookings={dayBookings}
+            />
+          )}
         </div>
       )}
     </Layout>
