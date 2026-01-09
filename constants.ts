@@ -72,3 +72,13 @@ export const SUBSCRIPTIONS: Subscription[] = [
 ];
 
 export const BUSINESS_HOURS = Array.from({ length: 16 }, (_, i) => i + 7); // 7:00 to 22:00
+import { createClient } from 'https://esm.sh/@supabase/supabase-js'
+
+export const SUPABASE_URL = 'https://xxyeevnxxfkbdafyeexc.supabase.co'
+export const SUPABASE_KEY = 'sb_publishable_ZVE0E6RBvzYO6HdOUmD7YQ_Zq4lSmAa'
+
+export const supabase = createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+)
+)
