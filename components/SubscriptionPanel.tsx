@@ -5,7 +5,7 @@ import { TRANSLATIONS } from '../translations';
 
 interface SubscriptionPanelProps {
   onSubscribe: (sub: Subscription) => void;
-  lang: 'az' | 'ru';
+  lang: 'az' | 'ru' | 'en';
 }
 
 const SubscriptionPanel: React.FC<SubscriptionPanelProps> = ({ onSubscribe, lang }) => {

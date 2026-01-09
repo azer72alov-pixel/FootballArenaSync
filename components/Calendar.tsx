@@ -3,13 +3,13 @@ import React, { useState } from 'react';
 interface CalendarProps {
   selectedDate: Date;
   onDateChange: (date: Date) => void;
-  lang: 'az' | 'ru';
+  lang: 'az' | 'ru' | 'en';
   bookedDates?: Set<string>; // New prop: Set of ISO strings (YYYY-MM-DD)
 }
 
 const Calendar: React.FC<CalendarProps> = ({ selectedDate, onDateChange, lang, bookedDates }) => {
   const [currentMonthIndex, setCurrentMonthIndex] = useState(0); 
-  const locale = lang === 'az' ? 'az-AZ' : 'ru-RU';
+  const locale = lang === 'az' ? 'az-AZ' : (lang === 'ru' ? 'ru-RU' : 'en-US');
   
   const getMonths = () => {
     const months = [];
@@ -32,7 +32,9 @@ const Calendar: React.FC<CalendarProps> = ({ selectedDate, onDateChange, lang, b
 
   const dayNames = lang === 'az' 
     ? ['Be', 'Ça', 'Çə', 'Ca', 'Cu', 'Şə', 'Ba'] 
-    : ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+    : (lang === 'ru' 
+        ? ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'] 
+        : ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']);
 
   const renderDays = () => {
     const days = [];

@@ -7,7 +7,7 @@ import TimeGrid from './TimeGrid';
 import { supabase } from '../lib/supabase';
 
 interface AdminDashboardProps {
-  lang: 'az' | 'ru';
+  lang: 'az' | 'ru' | 'en';
   managedCourtId: string;
   allCourts: Court[];
   onBack: () => void;
@@ -41,31 +41,41 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
   const [localBookings, setLocalBookings] = useState<any[]>([]);
 
   // FETCH BOOKINGS
+  const fetchAllBookings = async () => {
+    const { data, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('court_id', managedCourtId);
+    
+    if (data) {
+        // Mapping DB columns to component state structure
+        const mapped = data.map((b: any) => ({
+            id: b.id,
+            customer: b.customer_name,
+            courtId: b.court_id,
+            time: `${b.hour}:00 - ${b.hour + 1}:00`,
+            amount: b.amount,
+            status: b.status,
+            dateStr: b.date,
+            hour: b.hour,
+            type: b.type
+        }));
+        setLocalBookings(mapped);
+    }
+  };
+
   useEffect(() => {
-    const fetchAllBookings = async () => {
-        const { data, error } = await supabase
-            .from('bookings')
-            .select('*')
-            .eq('court_id', managedCourtId);
-        
-        if (data) {
-            // Transform snake_case to match our frontend usage if needed, or adapt frontend
-            // Mapping DB columns to component state structure
-            const mapped = data.map(b => ({
-                id: b.id,
-                customer: b.customer_name,
-                courtId: b.court_id,
-                time: `${b.hour}:00 - ${b.hour + 1}:00`,
-                amount: b.amount,
-                status: b.status,
-                dateStr: b.date,
-                hour: b.hour,
-                type: b.type
-            }));
-            setLocalBookings(mapped);
-        }
-    };
     fetchAllBookings();
+    
+    // Subscribe to realtime changes for this court
+    const channel = supabase
+      .channel('admin:bookings')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, (payload) => {
+        fetchAllBookings();
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); }
   }, [managedCourtId]);
 
   // 1. Calculate which dates have ANY bookings (for Calendar dots)
@@ -100,7 +110,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
         .from('bookings')
         .update({ status: 'paid' })
         .eq('id', id);
-
+    // State updates via realtime subscription or manual refetch automatically, but optimistic update is nice
     if (!error) {
         setLocalBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'paid' } : b));
     }
@@ -179,21 +189,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
             return;
         }
 
-        if (data) {
-            const mappedNew = data.map(b => ({
-                id: b.id,
-                customer: b.customer_name,
-                courtId: b.court_id,
-                time: `${b.hour}:00 - ${b.hour + 1}:00`,
-                amount: b.amount,
-                status: b.status,
-                dateStr: b.date,
-                hour: b.hour,
-                type: b.type
-            }));
-            setLocalBookings(prev => [...mappedNew, ...prev]);
-        }
-        
+        // Realtime will handle update, but we can do optimistic update if needed
         closeModal();
     }
   };
@@ -245,7 +241,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
       for(let i=0; i<count; i++) {
           const d = new Date(selectedDate);
           d.setDate(selectedDate.getDate() + (i * 7));
-          dates.push(d.toLocaleDateString(lang === 'az' ? 'az-AZ' : 'ru-RU', {day: 'numeric', month: 'short'}));
+          dates.push(d.toLocaleDateString(lang === 'az' ? 'az-AZ' : (lang === 'ru' ? 'ru-RU' : 'en-US'), {day: 'numeric', month: 'short'}));
       }
       return dates;
   }
@@ -269,17 +265,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                 </div>
                 
                 <h3 className="text-xl font-bold text-slate-900 mb-1">
-                    {lang === 'az' ? 'Yeni Rezervasiya' : 'Новое бронирование'}
+                    {lang === 'az' ? 'Yeni Rezervasiya' : (lang === 'ru' ? 'Новое бронирование' : 'New Booking')}
                 </h3>
                 <p className="text-slate-400 text-sm font-medium mb-6">
                     {bookingType === 'subscription' ? t.subscription : t.oneTime}
                 </p>
-                
-                {/* Note: Switcher removed inside modal because Tab determines context */}
 
                 <div className="space-y-4 mb-6">
                     <div className="flex items-center justify-between text-sm font-medium text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                         <span>{selectedDate.toLocaleDateString(lang === 'az' ? 'az-AZ' : 'ru-RU', {weekday: 'long', day:'numeric', month:'short'})}</span>
+                         <span>{selectedDate.toLocaleDateString(lang === 'az' ? 'az-AZ' : (lang === 'ru' ? 'ru-RU' : 'en-US'), {weekday: 'long', day:'numeric', month:'short'})}</span>
                          <span className="font-bold text-slate-900">{selectedHour}:00 - {selectedHour! + 1}:00</span>
                     </div>
 
@@ -313,7 +307,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
 
                     <div>
                         <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                            {lang === 'az' ? 'Müştəri adı' : 'Имя клиента'}
+                            {lang === 'az' ? 'Müştəri adı' : (lang === 'ru' ? 'Имя клиента' : 'Customer Name')}
                         </label>
                         <input 
                             ref={inputRef}
@@ -322,7 +316,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                             onChange={(e) => setCustomerNameInput(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleModalConfirm()}
                             className={`w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-medium focus:outline-none focus:ring-2 ${bookingType === 'subscription' ? 'focus:ring-purple-500' : 'focus:ring-indigo-500'}`}
-                            placeholder={lang === 'az' ? 'Ad daxil edin...' : 'Введите имя...'}
+                            placeholder={lang === 'az' ? 'Ad daxil edin...' : (lang === 'ru' ? 'Введите имя...' : 'Enter name...')}
                         />
                     </div>
                 </div>
@@ -342,14 +336,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                         onClick={closeModal}
                         className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-colors"
                     >
-                        {lang === 'az' ? 'Ləğv et' : 'Отмена'}
+                        {lang === 'az' ? 'Ləğv et' : (lang === 'ru' ? 'Отмена' : 'Cancel')}
                     </button>
                     <button 
                         onClick={handleModalConfirm}
                         disabled={!customerNameInput.trim()}
                         className={`flex-1 py-3 text-white rounded-xl font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg ${bookingType === 'subscription' ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-200' : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200'}`}
                     >
-                        {lang === 'az' ? 'Təsdiqlə' : 'Подтвердить'}
+                        {lang === 'az' ? 'Təsdiqlə' : (lang === 'ru' ? 'Подтвердить' : 'Confirm')}
                     </button>
                 </div>
             </div>
@@ -589,7 +583,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                     )) : (
                         <tr>
                             <td colSpan={6} className="px-6 py-12 text-center text-slate-400 font-medium">
-                                {lang === 'az' ? 'Məlumat tapılmadı.' : 'Нет данных для отображения.'}
+                                {lang === 'az' ? 'Məlumat tapılmadı.' : (lang === 'ru' ? 'Нет данных для отображения.' : 'No data to display.')}
                             </td>
                         </tr>
                     )}

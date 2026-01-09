@@ -6,12 +6,17 @@ interface CourtCardProps {
   court: Court;
   isSelected: boolean;
   onSelect: (court: Court) => void;
-  lang: 'az' | 'ru';
+  lang: 'az' | 'ru' | 'en';
 }
 
 const CourtCard: React.FC<CourtCardProps> = ({ court, isSelected, onSelect, lang }) => {
   const t = TRANSLATIONS[lang];
   const courtTypeLabel = t[court.type.toLowerCase() as keyof typeof t] || court.type;
+
+  const handleMapClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    window.open(court.mapUrl, '_blank');
+  };
 
   return (
     <div 
@@ -42,12 +47,16 @@ const CourtCard: React.FC<CourtCardProps> = ({ court, isSelected, onSelect, lang
         </div>
         
         <div className="flex flex-col space-y-3 mb-4 mt-1">
-          <div className="flex items-start text-xs text-slate-500 font-medium">
+          <div 
+            onClick={handleMapClick}
+            className="flex items-start text-xs text-slate-500 font-medium hover:text-indigo-600 transition-colors w-fit p-1 -ml-1 rounded-lg hover:bg-indigo-50"
+            title={lang === 'az' ? 'Xəritədə bax' : (lang === 'ru' ? 'Открыть на карте' : 'View on map')}
+          >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-indigo-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            <span className="truncate">{court.address}</span>
+            <span className="truncate underline decoration-dotted underline-offset-2">{court.address}</span>
           </div>
           <div className="flex items-center gap-3">
              <div className="bg-slate-50 px-2 py-1 rounded text-[10px] font-bold text-slate-500 uppercase">5-a-side</div>
