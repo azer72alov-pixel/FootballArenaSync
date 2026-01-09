@@ -7,7 +7,6 @@ import SubscriptionPanel from './components/SubscriptionPanel';
 import AdminDashboard from './components/AdminDashboard';
 import { COURTS } from './constants';
 import { Court, Subscription } from './types';
-import { getSmartRecommendation } from './services/geminiService';
 import { TRANSLATIONS } from './translations';
 import { supabase } from './lib/supabase';
 
@@ -61,7 +60,7 @@ const App: React.FC = () => {
         const prompt = lang === 'az' 
             ? "Futbol üçün həftəsonu oyunu axtarıram" 
             : "Ищу место для игры в футбол на выходных";
-        const tip = await getSmartRecommendation(prompt, lang);
+        const tip = ""; // временно
         setAiTip(tip || "");
         };
         fetchTip();
