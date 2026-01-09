@@ -1,109 +1,121 @@
 import React, { useState } from 'react';
-import Layout from './components/Layout';
-import Calendar from './components/Calendar';
+import Calendar from './components/Calendar'; // твой календарь
 import TimeGrid from './components/TimeGrid';
-import CourtCard from './components/CourtCard';
 import { TRANSLATIONS } from './translations';
 
-type Step = 'courts' | 'calendar' | 'time' | 'confirm';
+type Lang = 'az' | 'ru';
+
+const courts = ['Court 1', 'Court 2', 'Court 3']; // пример корта
 
 const App: React.FC = () => {
-  const [lang, setLang] = useState<'az' | 'ru'>('ru');
-  const t = TRANSLATIONS[lang];
+  const [lang, setLang] = useState<Lang>('az');
+  const [step, setStep] = useState<'court' | 'date' | 'time' | 'confirm'>('court');
 
-  const [step, setStep] = useState<Step>('courts');
   const [selectedCourt, setSelectedCourt] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedHour, setSelectedHour] = useState<number | null>(null);
 
-  const resetAll = () => {
-    setStep('courts');
+  const t = TRANSLATIONS[lang];
+
+  const resetSelection = () => {
     setSelectedCourt(null);
     setSelectedDate(null);
     setSelectedHour(null);
+    setStep('court');
   };
 
   return (
-    <Layout lang={lang} setLang={setLang}>
-      {/* ШАГ 1 — ПЛОЩАДКИ */}
-      {step === 'courts' && (
-        <div className="grid gap-4">
-          {['Court A', 'Court B', 'Court C'].map(court => (
-            <CourtCard
-              key={court}
-              title={court}
-              onClick={() => {
-                setSelectedCourt(court);
-                setStep('calendar');
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-md p-6">
+        {/* STEP: Choose Court */}
+        {step === 'court' && (
+          <div className="flex flex-col gap-4">
+            <h2 className="text-xl font-bold">{t.chooseCourt}</h2>
+            {courts.map(court => (
+              <button
+                key={court}
+                className="py-2 px-4 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition"
+                onClick={() => {
+                  setSelectedCourt(court);
+                  setStep('date');
+                }}
+              >
+                {court}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* STEP: Choose Date */}
+        {step === 'date' && (
+          <div className="flex flex-col gap-4">
+            <h2 className="text-xl font-bold">{t.chooseDate}</h2>
+            <Calendar
+              selectedDate={selectedDate}
+              onDateSelect={(date) => {
+                setSelectedDate(date instanceof Date ? date : new Date(date));
+                setStep('time');
               }}
             />
-          ))}
-        </div>
-      )}
-
-      {/* ШАГ 2 — КАЛЕНДАРЬ */}
-      {step === 'calendar' && (
-        <Calendar
-          selectedDate={selectedDate}
-          onDateSelect={(date) => {
-            setSelectedDate(date);
-            setStep('time');
-          }}
-          lang={lang}
-        />
-      )}
-
-      {/* ШАГ 3 — ВЫБОР ВРЕМЕНИ */}
-      {step === 'time' && (
-        <>
-          <TimeGrid
-            selectedHour={selectedHour}
-            onHourSelect={(hour) => {
-              setSelectedHour(hour);
-              setStep('confirm');
-            }}
-            lang={lang}
-          />
-
-          <button
-            className="mt-4 w-full py-3 rounded-xl bg-slate-200"
-            onClick={() => setStep('calendar')}
-          >
-            ← {t.back}
-          </button>
-        </>
-      )}
-
-      {/* ШАГ 4 — ПОДТВЕРЖДЕНИЕ */}
-      {step === 'confirm' && (
-        <div className="bg-white p-6 rounded-2xl shadow space-y-4">
-          <h2 className="text-xl font-bold">{t.confirmReservation}</h2>
-
-          <div className="text-sm text-slate-600 space-y-1">
-            <div>{t.court}: {selectedCourt}</div>
-            <div>{t.date}: {selectedDate?.toLocaleDateString()}</div>
-            <div>{t.time}: {selectedHour}:00</div>
+            <button
+              className="py-2 px-4 rounded-lg bg-gray-300 text-gray-800 hover:bg-gray-400 transition"
+              onClick={() => setStep('court')}
+            >
+              {t.back}
+            </button>
           </div>
+        )}
 
-          <button
-            className="w-full py-3 rounded-xl bg-indigo-600 text-white font-bold"
-            onClick={() => {
-              // тут позже будет Supabase insert
-              resetAll();
-            }}
-          >
-            {t.confirm}
-          </button>
+        {/* STEP: Choose Time */}
+        {step === 'time' && selectedDate && (
+          <div className="flex flex-col gap-4">
+            <h2 className="text-xl font-bold">{t.chooseTime}</h2>
+            <TimeGrid
+              selectedHour={selectedHour}
+              onHourSelect={(hour) => {
+                setSelectedHour(hour);
+                setStep('confirm');
+              }}
+              lang={lang}
+              dayBookings={[]} // можно подключить брони
+            />
+            <button
+              className="py-2 px-4 rounded-lg bg-gray-300 text-gray-800 hover:bg-gray-400 transition"
+              onClick={() => setStep('date')}
+            >
+              {t.back}
+            </button>
+          </div>
+        )}
 
-          <button
-            className="w-full py-2 text-sm text-slate-500"
-            onClick={() => setStep('time')}
-          >
-            ← {t.back}
-          </button>
-        </div>
-      )}
-    </Layout>
+        {/* STEP: Confirm */}
+        {step === 'confirm' && (
+          <div className="flex flex-col gap-4">
+            <h2 className="text-xl font-bold">{t.confirmReservation}</h2>
+            <p>{t.court}: {selectedCourt || '-'}</p>
+            <p>{t.date}: {selectedDate ? selectedDate.toLocaleDateString() : '-'}</p>
+            <p>{t.time}: {selectedHour !== null ? `${selectedHour}:00` : '-'}</p>
+
+            <button
+              className="py-2 px-4 rounded-lg bg-green-600 text-white hover:bg-green-700 transition"
+              onClick={() => {
+                alert(`${t.confirmed}: ${selectedCourt} - ${selectedDate?.toLocaleDateString()} ${selectedHour}:00`);
+                resetSelection();
+              }}
+            >
+              {t.confirm}
+            </button>
+
+            <button
+              className="py-2 px-4 rounded-lg bg-gray-300 text-gray-800 hover:bg-gray-400 transition"
+              onClick={() => setStep('time')}
+            >
+              {t.back}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
