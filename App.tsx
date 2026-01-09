@@ -1,138 +1,104 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Layout from './components/Layout';
+import CourtCard from './components/CourtCard';
 import Calendar from './components/Calendar';
 import TimeGrid from './components/TimeGrid';
+import SubscriptionPanel from './components/SubscriptionPanel';
+import AdminDashboard from './components/AdminDashboard';
 import { COURTS } from './constants';
+import { Court, Subscription } from './types';
+import { TRANSLATIONS } from './translations';
 import { supabase } from './lib/supabase';
+import './index.css';
 
 const App: React.FC = () => {
   const tg = window.Telegram?.WebApp;
-  const [view, setView] = useState<'home' | 'booking'>('home');
+  const [lang, setLang] = useState<'az' | 'ru'>('az');
+  const [view, setView] = useState<'home' | 'search' | 'booking' | 'subscription' | 'admin_login' | 'admin_dashboard'>('home');
   const [bookingStep, setBookingStep] = useState<'date' | 'time'>('date');
-  const [selectedCourt, setSelectedCourt] = useState(COURTS[0]);
-  const [selectedDate, setSelectedDate] = useState(new Date());
+
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCourt, setSelectedCourt] = useState<Court | null>(null);
+  const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
+  const [activeImage, setActiveImage] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedHour, setSelectedHour] = useState<number | null>(null);
   const [reservedHours, setReservedHours] = useState<number[]>([]);
-  const [bookingSuccess, setBookingSuccess] = useState(false);
-  const [isBooking, setIsBooking] = useState(false);
-  const [userName, setUserName] = useState('Guest');
+  const [dayBookings, setDayBookings] = useState<{hour: number, type: string}[]>([]);
+  const [userName, setUserName] = useState<string>("Guest User");
+  const [managedCourtId, setManagedCourtId] = useState<string | null>(null);
+  const [adminPin, setAdminPin] = useState('');
 
-  // Telegram initialization
   useEffect(() => {
-    if (!tg) return;
-    tg.ready();
-    tg.expand();
-    if (tg.initDataUnsafe?.user?.first_name) {
-      setUserName(tg.initDataUnsafe.user.first_name);
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      if (tg.initDataUnsafe?.user?.language_code) {
+        const userLang = tg.initDataUnsafe.user.language_code;
+        if (userLang === 'ru' || userLang === 'az') setLang(userLang);
+      }
+      if (tg.initDataUnsafe?.user?.first_name) {
+        setUserName(
+          tg.initDataUnsafe.user.first_name +
+          (tg.initDataUnsafe.user.last_name ? ' ' + tg.initDataUnsafe.user.last_name : '')
+        );
+      }
     }
   }, []);
 
-  // Back button
+  const t = TRANSLATIONS[lang];
+
+  const filteredCourts = useMemo(() => {
+    return COURTS.filter(court =>
+       court.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+       court.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+       court.type.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [searchTerm]);
+
   const handleBack = useCallback(() => {
-    if (bookingStep === 'time') {
-      setBookingStep('date');
-      return;
-    }
+    setSearchTerm('');
     setView('home');
-    setBookingStep('date');
-    setBookingSuccess(false);
+    setSelectedCourt(null);
+    setSelectedSubscription(null);
+    setActiveImage('');
     setSelectedHour(null);
-  }, [bookingStep]);
-
-  useEffect(() => {
-    if (!tg) return;
-    if (view === 'booking') {
-      tg.BackButton.show();
-      tg.BackButton.onClick(handleBack);
-    } else {
-      tg.BackButton.hide();
-    }
-    return () => tg?.BackButton.offClick(handleBack);
-  }, [view, handleBack]);
-
-  // Fetch reserved hours
-  useEffect(() => {
-    const fetchBookings = async () => {
-      const dateStr = selectedDate.toISOString().split('T')[0];
-      const { data } = await supabase
-        .from('bookings')
-        .select('hour')
-        .eq('court_id', selectedCourt.id)
-        .eq('date', dateStr);
-      if (data) setReservedHours(data.map((b: any) => b.hour));
-    };
-    fetchBookings();
-  }, [selectedCourt, selectedDate, bookingSuccess]);
-
-  // Handle booking
-  const handleBook = async () => {
-    if (!selectedHour) return;
-    setIsBooking(true);
-    const { error } = await supabase.from('bookings').insert({
-      court_id: selectedCourt.id,
-      date: selectedDate.toISOString().split('T')[0],
-      hour: selectedHour,
-      customer_name: userName,
-      status: 'pending',
-    });
-    if (!error) {
-      setBookingSuccess(true);
-      tg?.MainButton.hide();
-    }
-    setIsBooking(false);
-  };
-
-  // Show Telegram MainButton
-  useEffect(() => {
-    if (!tg) return;
-    if (bookingStep === 'time' && selectedHour && !bookingSuccess) {
-      tg.MainButton.setText('Confirm Booking');
-      tg.MainButton.show();
-      tg.MainButton.onClick(handleBook);
-    } else {
-      tg.MainButton.hide();
-    }
-    return () => tg?.MainButton.offClick(handleBook);
-  }, [bookingStep, selectedHour, bookingSuccess]);
+    setReservedHours([]);
+    setDayBookings([]);
+    setManagedCourtId(null);
+    setAdminPin('');
+    setBookingStep('date');
+  }, []);
 
   return (
-    <Layout>
-      {view === 'home' && (
-        <div className="home-screen">
-          <h1>Welcome to ArenaSync</h1>
-          <button onClick={() => setView('booking')}>Book a Court</button>
+    <Layout lang={lang} onLangChange={setLang}>
+      {(view === 'home' || view === 'search') && (
+        <div className="space-y-8">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && setView('search')}
+            placeholder={t.searchPlaceholder}
+          />
+          {filteredCourts.map(court => (
+            <CourtCard
+              key={court.id}
+              court={court}
+              isSelected={false}
+              onSelect={() => setSelectedCourt(court)}
+              lang={lang}
+            />
+          ))}
         </div>
       )}
-
       {view === 'booking' && selectedCourt && (
-        <div className="booking-screen">
-          <h2>{selectedCourt.name}</h2>
-          {!bookingSuccess ? (
-            <div>
-              {bookingStep === 'date' ? (
-                <Calendar
-                  selectedDate={selectedDate}
-                  onDateChange={(date) => {
-                    setSelectedDate(date);
-                    setBookingStep('time');
-                  }}
-                />
-              ) : (
-                <TimeGrid
-                  reservedHours={reservedHours}
-                  selectedHour={selectedHour}
-                  onHourSelect={setSelectedHour}
-                />
-              )}
-              {isBooking && <p>Booking...</p>}
-            </div>
-          ) : (
-            <div className="confirmation">
-              <h3>Booking Confirmed!</h3>
-              <p>
-                {selectedCourt.name} on {selectedDate.toDateString()} at {selectedHour}:00
-              </p>
-            </div>
+        <div>
+          {bookingStep === 'date' && (
+            <Calendar selectedDate={selectedDate} onDateChange={setSelectedDate} lang={lang} />
+          )}
+          {bookingStep === 'time' && (
+            <TimeGrid selectedHour={selectedHour} onHourSelect={setSelectedHour} lang={lang} reservedHours={reservedHours} dayBookings={dayBookings} />
           )}
         </div>
       )}
