@@ -91,7 +91,19 @@ export const TRANSLATIONS = {
     soundOn: "Səs açıq",
     soundOff: "Səs bağlı",
     newBookingAlert: "🔔 Yeni Rezervasiya!",
-    justBooked: "indicə rezerv edildi"
+    justBooked: "indicə rezerv edildi",
+    // Super Admin Specific
+    ownerMode: "Sahib Rejimi",
+    platformOverview: "Platforma İcmalı",
+    managePartners: "Partnyorları idarə edin və gəlirləri izləyin.",
+    totalRevenue: "Ümumi Gəlir",
+    totalPartners: "Partnyor Sayı",
+    revenue: "Gəlir",
+    bookings: "Rezervlər",
+    suspended: "Dayandırılıb",
+    active: "Aktiv",
+    activatePartner: "Aktivləşdir",
+    suspendAccess: "Dayandır"
   },
   ru: {
     findCourts: "Площадки",
@@ -184,7 +196,19 @@ export const TRANSLATIONS = {
     soundOn: "Звук вкл.",
     soundOff: "Звук выкл.",
     newBookingAlert: "🔔 Новая бронь!",
-    justBooked: "только что забронировано"
+    justBooked: "только что забронировано",
+    // Super Admin Specific
+    ownerMode: "Режим Владельца",
+    platformOverview: "Обзор Платформы",
+    managePartners: "Управление партнерами и доход.",
+    totalRevenue: "Общий Доход",
+    totalPartners: "Всего Партнеров",
+    revenue: "Выручка",
+    bookings: "Брони",
+    suspended: "Приостановлен",
+    active: "Активен",
+    activatePartner: "Активировать",
+    suspendAccess: "Приостановить"
   },
   en: {
     findCourts: "Courts",
@@ -277,6 +301,18 @@ export const TRANSLATIONS = {
     soundOn: "Sound On",
     soundOff: "Sound Off",
     newBookingAlert: "🔔 New Booking!",
-    justBooked: "just booked"
+    justBooked: "just booked",
+    // Super Admin Specific
+    ownerMode: "Owner Mode",
+    platformOverview: "Platform Overview",
+    managePartners: "Manage your partners and monitor revenue.",
+    totalRevenue: "Total Revenue",
+    totalPartners: "Total Partners",
+    revenue: "Revenue",
+    bookings: "Bookings",
+    suspended: "Suspended",
+    active: "Active",
+    activatePartner: "Activate Partner",
+    suspendAccess: "Suspend Access"
   }
 };

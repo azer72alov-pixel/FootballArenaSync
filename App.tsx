@@ -6,7 +6,7 @@ import TimeGrid from './components/TimeGrid';
 import SubscriptionPanel from './components/SubscriptionPanel';
 import AdminDashboard from './components/AdminDashboard';
 import SuperAdminDashboard from './components/SuperAdminDashboard';
-import { COURTS, NOTIFICATION_CONFIG } from './constants';
+import { COURTS, NOTIFICATION_CONFIG, SUPER_ADMIN_PIN } from './constants';
 import { Court, Subscription } from './types';
 import { TRANSLATIONS } from './translations';
 import { supabase } from './lib/supabase';
@@ -269,7 +269,7 @@ const App: React.FC = () => {
   const handlePartnerLogin = () => {
     // SECURITY: This function only checks for Venue PINs. 
     // It does NOT accept the Super Admin PIN.
-    if (adminPin === '999999') {
+    if (adminPin === SUPER_ADMIN_PIN) {
         showToast(t.invalidPin, 'error'); // Disguise Master Key as invalid here
         setAdminPin('');
         return;
@@ -293,7 +293,7 @@ const App: React.FC = () => {
 
   // Функция входа ВЛАДЕЛЬЦА (Secret)
   const handleSuperAdminLogin = () => {
-      if (adminPin === '999999') { // Updated to 6 digits for consistency
+      if (adminPin === SUPER_ADMIN_PIN) { 
           setAdminPin('');
           setView('super_admin_dashboard');
       } else {
