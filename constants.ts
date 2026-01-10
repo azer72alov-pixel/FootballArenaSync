@@ -14,7 +14,7 @@ export const SUPER_ADMIN_PIN = '999999'; // <-- ВАШ КОД СУПЕР-АДМ�
 // =================================================================
 export const NOTIFICATION_CONFIG = {
     // Вставьте сюда токен вашего существующего бота
-    BOT_TOKEN: '' 
+    BOT_TOKEN: '8517079073:AAFI9EUqorSj0v0NLcWAEZ8375i5OgfauDk' 
 };
 
 export const COURTS: Court[] = [
