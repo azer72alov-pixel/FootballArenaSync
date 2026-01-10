@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Court } from '../types';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../supabase';
 import { TRANSLATIONS } from '../translations';
 
 interface SuperAdminDashboardProps {
@@ -12,14 +12,14 @@ interface SuperAdminDashboardProps {
 }
 
 const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ 
-  lang, 
+  lang,
   allCourts, 
   suspendedCourts, 
   onToggleSuspend, 
   onBack 
 }) => {
-  const [stats, setStats] = useState<Record<string, { totalRevenue: number; totalBookings: number }>>({});
   const t = TRANSLATIONS[lang];
+  const [stats, setStats] = useState<Record<string, { totalRevenue: number; totalBookings: number }>>({});
 
   useEffect(() => {
     // Fetch aggregated stats for all courts
@@ -59,20 +59,20 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
                     <span className="mr-1">‹</span> {t.backToDashboard}
                 </button>
                 <div className="px-3 py-1 bg-indigo-600 rounded-full text-[10px] font-bold uppercase tracking-widest">
-                    Owner Mode
+                    {t.ownerMode}
                 </div>
             </div>
-            <h1 className="text-2xl font-black mb-1">Platform Overview</h1>
-            <p className="text-slate-400 text-sm mb-6">Manage your partners and monitor revenue.</p>
+            <h1 className="text-2xl font-black mb-1">{t.platformOverview}</h1>
+            <p className="text-slate-400 text-sm mb-6">{t.managePartners}</p>
             
             <div className="flex items-center gap-4">
                 <div>
-                    <div className="text-[10px] uppercase text-slate-500 font-bold">Total Revenue</div>
+                    <div className="text-[10px] uppercase text-slate-500 font-bold">{t.totalRevenue}</div>
                     <div className="text-3xl font-black text-emerald-400">{totalPlatformRevenue} ₼</div>
                 </div>
                 <div className="h-8 w-px bg-slate-700"></div>
                 <div>
-                    <div className="text-[10px] uppercase text-slate-500 font-bold">Total Partners</div>
+                    <div className="text-[10px] uppercase text-slate-500 font-bold">{t.totalPartners}</div>
                     <div className="text-3xl font-black text-white">{allCourts.length}</div>
                 </div>
             </div>
@@ -98,18 +98,18 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
                         </div>
                         <div className="flex flex-col items-end">
                             <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase mb-2 ${isSuspended ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600'}`}>
-                                {isSuspended ? 'Suspended' : 'Active'}
+                                {isSuspended ? t.suspended : t.active}
                             </span>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4 mb-4">
                         <div className="bg-slate-50 rounded-xl p-3">
-                            <div className="text-[10px] text-slate-400 font-bold uppercase">Revenue</div>
+                            <div className="text-[10px] text-slate-400 font-bold uppercase">{t.revenue}</div>
                             <div className="text-lg font-black text-slate-900">{courtStats.totalRevenue} ₼</div>
                         </div>
                         <div className="bg-slate-50 rounded-xl p-3">
-                            <div className="text-[10px] text-slate-400 font-bold uppercase">Bookings</div>
+                            <div className="text-[10px] text-slate-400 font-bold uppercase">{t.bookings}</div>
                             <div className="text-lg font-black text-slate-900">{courtStats.totalBookings}</div>
                         </div>
                     </div>
@@ -123,7 +123,7 @@ const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({
                                 : 'bg-white border-2 border-slate-200 text-slate-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200'
                             }`}
                         >
-                            {isSuspended ? 'Activate Partner' : 'Suspend Access'}
+                            {isSuspended ? t.activatePartner : t.suspendAccess}
                         </button>
                     </div>
                 </div>

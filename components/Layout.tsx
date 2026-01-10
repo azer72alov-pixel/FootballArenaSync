@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { TRANSLATIONS } from '../translations';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../supabase';
 
 interface LayoutProps {
   children: React.ReactNode;

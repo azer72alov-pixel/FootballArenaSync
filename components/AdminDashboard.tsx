@@ -4,7 +4,7 @@ import { COURTS, SUBSCRIPTIONS } from '../constants';
 import { Court } from '../types';
 import Calendar from './Calendar';
 import TimeGrid from './TimeGrid';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../supabase';
 import { formatDateLocal } from '../App'; // Import the new helper
 
 interface AdminDashboardProps {
