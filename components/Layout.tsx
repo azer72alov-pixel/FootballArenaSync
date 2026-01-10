@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { TRANSLATIONS } from '../translations';
 import { supabase } from '../supabase';
+import { PLATFORM_BOT_LINK } from '../constants';
 
 interface LayoutProps {
   children: React.ReactNode;
   lang: 'az' | 'ru' | 'en';
   onLangChange: (lang: 'az' | 'ru' | 'en') => void;
-  onSecretTrigger?: () => void; // New prop for the secret door
+  onSecretTrigger?: () => void;
 }
 
 const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretTrigger }) => {
@@ -16,6 +17,9 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
 
   // Secret Trigger Logic
   const [logoTapCount, setLogoTapCount] = useState(0);
+
+  // QR Modal State
+  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
 
   useEffect(() => {
     // Check if we are using the real Supabase client
@@ -32,7 +36,6 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
       if (newCount >= 5) {
           if (onSecretTrigger) {
               onSecretTrigger();
-              // Haptic feedback if in Telegram
               if (window.Telegram?.WebApp) {
                   window.Telegram.WebApp.HapticFeedback.notificationOccurred('warning');
               }
@@ -46,11 +49,49 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
       }, 1000);
   };
 
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(PLATFORM_BOT_LINK)}&color=0f172a`;
+
+  const copyLink = () => {
+      navigator.clipboard.writeText(PLATFORM_BOT_LINK);
+      if (window.Telegram?.WebApp) {
+          window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+      }
+      setIsQrModalOpen(false);
+  };
+
   return (
-    // Changed pb-safe to pb-[env(safe-area-inset-bottom)] for robust iOS fullscreen support
     <div className="min-h-screen pb-[env(safe-area-inset-bottom)] transition-colors duration-200" style={{ backgroundColor: 'var(--tg-theme-bg-color, #f8fafc)' }}>
+      {/* --- QR MODAL --- */}
+      {isQrModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+             <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => setIsQrModalOpen(false)}></div>
+             <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-sm shadow-2xl relative z-10 animate-in zoom-in-95 duration-200 flex flex-col items-center text-center">
+                 <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mb-6 text-indigo-600 shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zM6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                 </div>
+                 
+                 <h3 className="text-2xl font-black text-slate-900 mb-2">{t.shareApp}</h3>
+                 <p className="text-slate-500 text-sm mb-6 max-w-[200px]">{t.scanToOpenApp}</p>
+                 
+                 <div className="bg-white p-4 rounded-3xl shadow-inner border border-slate-100 mb-8">
+                     <img src={qrCodeUrl} alt="App QR" className="w-48 h-48 mix-blend-multiply" />
+                 </div>
+
+                 <div className="flex gap-3 w-full">
+                     <button onClick={() => setIsQrModalOpen(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors">
+                         {t.close}
+                     </button>
+                     <button onClick={copyLink} className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200">
+                         {t.copyLink}
+                     </button>
+                 </div>
+             </div>
+        </div>
+      )}
+
       <nav 
-        // Simplified pt-[env(...)] ensuring header doesn't overlap status bar
         className="sticky top-0 z-50 backdrop-blur-md border-b px-4 py-3 shadow-sm pt-[env(safe-area-inset-top)] transition-colors duration-200"
         style={{ 
             backgroundColor: 'rgba(255, 255, 255, 0.95)',
@@ -70,6 +111,17 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
           </div>
           
           <div className="flex items-center space-x-2 md:space-x-4">
+            {/* QR Button */}
+            <button 
+                onClick={() => setIsQrModalOpen(true)}
+                className="bg-slate-100 hover:bg-slate-200 text-slate-600 p-2 rounded-xl transition-colors"
+                title="App QR Code"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zM6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+            </button>
+
             <div className="p-1 rounded-xl flex bg-slate-100">
               <button 
                 onClick={() => onLangChange('az')}
@@ -98,7 +150,6 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
         {children}
       </main>
       
-      {/* Small status indicator for the developer/user */}
       {!isTg && (
         <div className="fixed bottom-2 right-2 flex items-center space-x-1.5 bg-white/50 backdrop-blur px-2 py-1 rounded-full text-[8px] font-bold text-slate-400 border border-slate-100 z-50">
             <div className={`w-1.5 h-1.5 rounded-full ${isDbReal ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>

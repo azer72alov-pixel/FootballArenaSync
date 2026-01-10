@@ -284,6 +284,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
       setTimeout(() => setSaveMessage({ text: '', type: '' }), 3000);
   };
 
+  // Generate QR Code URL with deep link
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${window.location.origin}${window.location.pathname}?court=${managedCourtId}`)}&color=0f172a`;
+
   // Calculate dynamic stats
   const revenue = localBookings.filter(b => b.status === 'paid').reduce((sum, b) => sum + b.amount, 0);
   const activeCount = localBookings.length;
@@ -547,6 +550,27 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                       >
                           {t.saveChanges}
                       </button>
+
+                      {/* --- QR CODE SECTION --- */}
+                      <div className="pt-8 mt-8 border-t border-slate-100">
+                          <h3 className="text-lg font-bold text-slate-900 text-center mb-4">{t.venueQr}</h3>
+                          <div className="bg-white p-4 rounded-2xl shadow-inner border border-slate-100 flex flex-col items-center">
+                              <img 
+                                src={qrCodeUrl} 
+                                alt="Venue QR Code" 
+                                className="w-48 h-48 mb-4 rounded-lg mix-blend-multiply" 
+                              />
+                              <p className="text-center text-xs text-slate-400 font-medium mb-4">
+                                  {t.scanToBook}
+                              </p>
+                              <button 
+                                onClick={() => window.open(qrCodeUrl, '_blank')}
+                                className="text-indigo-600 text-sm font-bold hover:underline"
+                              >
+                                  {t.printQr}
+                              </button>
+                          </div>
+                      </div>
                   </div>
               </div>
           </div>
