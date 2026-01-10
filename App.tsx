@@ -10,6 +10,15 @@ import { Court, Subscription } from './types';
 import { TRANSLATIONS } from './translations';
 import { supabase } from './lib/supabase';
 
+// Helper to format date in LOCAL time (YYYY-MM-DD)
+// Prevents timezone shifts (e.g. 00:00 local becoming 20:00 previous day UTC)
+export const formatDateLocal = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const App: React.FC = () => {
   const tg = window.Telegram?.WebApp;
   const [lang, setLang] = useState<'az' | 'ru' | 'en'>('az');
@@ -59,7 +68,9 @@ const App: React.FC = () => {
 
   const fetchBookings = useCallback(async () => {
         if (!selectedCourt) return;
-        const dateStr = selectedDate.toISOString().split('T')[0];
+        // FIX: Use local date string instead of toISOString()
+        const dateStr = formatDateLocal(selectedDate);
+        
         const { data } = await supabase.from('bookings').select('hour, type').eq('court_id', selectedCourt.id).eq('date', dateStr);
         if (data) {
             setReservedHours(data.map((b: any) => b.hour));
@@ -106,7 +117,9 @@ const App: React.FC = () => {
 
     const isSub = view === 'subscription';
     const amount = Math.round(isSub && selectedSubscription ? selectedSubscription.price : selectedCourt.pricePerHour);
-    const dateStr = selectedDate.toISOString().split('T')[0];
+    
+    // FIX: Use local date string to prevent previous-day bug
+    const dateStr = formatDateLocal(selectedDate);
 
     try {
         const { error } = await supabase.from('bookings').insert({
@@ -157,17 +170,32 @@ const App: React.FC = () => {
     if ((view === 'booking' || view === 'subscription') && bookingStep === 'time') {
       setBookingStep('date'); return;
     }
-    setView('home'); setSelectedCourt(null); setBookingStep('date');
+    setView('home'); setSelectedCourt(null); setBookingStep('date'); setAdminPin('');
   }, [view, bookingStep, bookingSuccess]);
 
   useEffect(() => {
     if (!tg) return;
-    if (view !== 'home' || bookingSuccess) { tg.BackButton.show(); tg.BackButton.onClick(handleBack); }
+    if (view !== 'home' || bookingSuccess || view === 'admin_login') { tg.BackButton.show(); tg.BackButton.onClick(handleBack); }
     else { tg.BackButton.hide(); }
     return () => { tg.BackButton.offClick(handleBack); };
   }, [view, handleBack, tg, bookingSuccess]);
 
   const showStickyButton = (view === 'booking' || view === 'subscription') && selectedCourt && selectedHour !== null && !bookingSuccess;
+
+  // Функция входа в админку (Старая логика: PIN определяет объект)
+  const handleAdminLogin = () => {
+    // Ищем корт, у которого подходит PIN
+    const court = COURTS.find(c => (localStorage.getItem(`court_pin_${c.id}`) || c.pin) === adminPin);
+
+    if (court) {
+        setManagedCourtId(court.id);
+        setAdminPin('');
+        setView('admin_dashboard');
+    } else {
+        showToast(t.invalidPin, 'error');
+        setAdminPin('');
+    }
+  };
 
   return (
     <Layout lang={lang} onLangChange={setLang}>
@@ -188,14 +216,15 @@ const App: React.FC = () => {
         <div className="flex flex-col items-center justify-center min-h-[60vh] animate-in fade-in slide-in-from-bottom-4">
             <div className="bg-white p-8 rounded-[2rem] shadow-xl w-full max-w-sm text-center border border-slate-100">
                 <h2 className="text-2xl font-bold text-slate-900 mb-2">{t.partnerAccess}</h2>
+                <p className="text-slate-400 text-sm mb-6">{t.enterPin}</p>
+                
                 <input type="password" value={adminPin} onChange={(e) => setAdminPin(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-center text-2xl tracking-widest font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-6"
                     placeholder="••••" maxLength={4} />
-                <button onClick={() => {
-                    const court = COURTS.find(c => (localStorage.getItem(`court_pin_${c.id}`) || c.pin) === adminPin);
-                    if (court) { setManagedCourtId(court.id); setAdminPin(''); setView('admin_dashboard'); }
-                    else { showToast(t.invalidPin, 'error'); setAdminPin(''); }
-                }} className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg">Войти</button>
+                
+                <button onClick={handleAdminLogin} className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-indigo-600 transition-colors">
+                    Войти
+                </button>
             </div>
         </div>
       )}
@@ -224,7 +253,7 @@ const App: React.FC = () => {
              ))}
           </div>
           <SubscriptionPanel onSubscribe={(s) => { setSelectedSubscription(s); setView('subscription'); if(!selectedCourt) setSelectedCourt(COURTS[0]); }} lang={lang} />
-          <button onClick={() => setView('admin_login')} className="w-full py-4 text-slate-400 text-sm font-bold opacity-50">Admin Panel</button>
+          <button onClick={() => { setView('admin_login'); setAdminPin(''); }} className="w-full py-4 text-slate-400 text-sm font-bold opacity-50">Admin Panel</button>
         </div>
       )}
 
