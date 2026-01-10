@@ -118,24 +118,55 @@ const App: React.FC = () => {
     const isSub = view === 'subscription';
     const amount = Math.round(isSub && selectedSubscription ? selectedSubscription.price : selectedCourt.pricePerHour);
     
-    // FIX: Use local date string to prevent previous-day bug
-    const dateStr = formatDateLocal(selectedDate);
+    // Подготовка массива для вставки (одна запись или несколько для абонемента)
+    const rowsToInsert = [];
 
-    try {
-        const { error } = await supabase.from('bookings').insert({
+    if (isSub && selectedSubscription) {
+        // Логика абонемента: создаем записи на N недель вперед
+        const iterations = selectedSubscription.hours; // В constants.ts 'hours' используется как количество игр (4)
+
+        for (let i = 0; i < iterations; i++) {
+            const nextDate = new Date(selectedDate);
+            nextDate.setDate(selectedDate.getDate() + (i * 7)); // +7 дней для каждой следующей недели
+            const dStr = formatDateLocal(nextDate);
+
+            rowsToInsert.push({
+                court_id: selectedCourt.id,
+                date: dStr,
+                hour: selectedHour,
+                customer_name: userName,
+                status: 'pending',
+                type: 'subscription',
+                // Всю сумму пишем в первую запись, остальные 0 (чтобы выручка считалась корректно), 
+                // либо можно делить сумму. Для простоты пишем полную сумму в первую.
+                amount: i === 0 ? amount : 0 
+            });
+        }
+    } else {
+        // Обычное разовое бронирование
+        const dateStr = formatDateLocal(selectedDate);
+        rowsToInsert.push({
             court_id: selectedCourt.id,
             date: dateStr,
             hour: selectedHour,
             customer_name: userName,
             status: 'pending',
-            type: isSub ? 'subscription' : 'hourly',
+            type: 'hourly',
             amount: amount
         });
+    }
+
+    try {
+        // Добавили .select() в конце, чтобы гарантировать выполнение запроса в Mock-клиенте и получить данные
+        const { error } = await supabase.from('bookings').insert(rowsToInsert).select();
 
         if (error) {
             // ПРОВЕРКА НА КОНФЛИКТ (КТО-ТО УСПЕЛ РАНЬШЕ)
             if (error.code === '23505') {
-                const msg = lang === 'az' ? '🛑 Bu vaxt artıq tutulub!' : (lang === 'ru' ? '🛑 Это время только что заняли!' : '🛑 Already booked!');
+                const msg = isSub 
+                    ? (lang === 'az' ? '🛑 Gələcək həftələrin birində bu vaxt tutulub!' : (lang === 'ru' ? '🛑 Одна из будущих дат уже занята!' : '🛑 One of the future dates is booked!'))
+                    : (lang === 'az' ? '🛑 Bu vaxt artıq tutulub!' : (lang === 'ru' ? '🛑 Это время только что заняли!' : '🛑 Already booked!'));
+                
                 tg?.showPopup ? tg.showPopup({ title: 'Error', message: msg, buttons: [{type: 'ok'}] }) : showToast(msg, 'error');
                 fetchBookings();
             } else if (error.message.includes('row-level security')) {
@@ -158,6 +189,7 @@ const App: React.FC = () => {
     } catch (e) {
         setIsBooking(false);
         showToast("System Error", 'error');
+        console.error(e);
     }
   };
 
@@ -175,7 +207,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!tg) return;
-    if (view !== 'home' || bookingSuccess || view === 'admin_login') { tg.BackButton.show(); tg.BackButton.onClick(handleBack); }
+    if (view !== 'home' || bookingSuccess) { tg.BackButton.show(); tg.BackButton.onClick(handleBack); }
     else { tg.BackButton.hide(); }
     return () => { tg.BackButton.offClick(handleBack); };
   }, [view, handleBack, tg, bookingSuccess]);
