@@ -9,7 +9,7 @@ import SuperAdminDashboard from './components/SuperAdminDashboard';
 import { COURTS, NOTIFICATION_CONFIG, SUPER_ADMIN_PIN } from './constants';
 import { Court, Subscription } from './types';
 import { TRANSLATIONS } from './translations';
-import { supabase } from './lib/supabase';
+import { supabase } from './supabase';
 
 // Helper to format date in LOCAL time (YYYY-MM-DD)
 // Prevents timezone shifts (e.g. 00:00 local becoming 20:00 previous day UTC)
