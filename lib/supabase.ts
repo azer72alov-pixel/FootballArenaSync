@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 // ==========================================
 // 🚨 ВСТАВЬТЕ ВАШИ ДАННЫЕ ИЗ SUPABASE НИЖЕ 🚨
 // ==========================================
-const MANUAL_SUPABASE_URL = ""; // Сюда вставьте ваш Project URL
-const MANUAL_SUPABASE_KEY = ""; // Сюда вставьте ваш anon public key
+const MANUAL_SUPABASE_URL = "sb_publishable_ZVE0E6RBvzYO6HdOUmD7YQ_Zq4lSmAa"; // Сюда вставьте ваш Project URL
+const MANUAL_SUPABASE_KEY = "https://xxyeevnxxfkbdafyeexc.supabase.co"; // Сюда вставьте ваш anon public key
 
 // Используем переменные окружения или ручной ввод
 const supabaseUrl = process.env.VITE_SUPABASE_URL || MANUAL_SUPABASE_URL;
