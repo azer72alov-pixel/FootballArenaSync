@@ -35,11 +35,41 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
   const [oldPin, setOldPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [saveMessage, setSaveMessage] = useState({ text: '', type: '' });
+
+  // Sound & Notification State
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [notification, setNotification] = useState<{message: string, visible: boolean} | null>(null);
+  
+  // Audio Ref - Using a gentle chime sound
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Store bookings from DB
   const [localBookings, setLocalBookings] = useState<any[]>([]);
+
+  // Initialize Audio
+  useEffect(() => {
+    // Standard notification sound
+    audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+  }, []);
+
+  // Play sound function
+  const playNotification = () => {
+      if (soundEnabled && audioRef.current) {
+          audioRef.current.currentTime = 0;
+          audioRef.current.play().catch(e => console.log('Audio playback prevented by browser:', e));
+      }
+  };
+
+  // Show visual toast
+  const showNotification = (msg: string) => {
+      setNotification({ message: msg, visible: true });
+      // Clear after 5 seconds
+      setTimeout(() => {
+          setNotification(prev => prev && prev.message === msg ? { ...prev, visible: false } : prev);
+      }, 5000);
+  };
 
   // FETCH BOOKINGS
   const fetchAllBookings = async () => {
@@ -72,12 +102,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
     const channel = supabase
       .channel('admin:bookings')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, (payload) => {
+        
+        // CHECK IF IT'S A NEW INSERT FOR THIS COURT
+        if (payload.eventType === 'INSERT' && payload.new.court_id === managedCourtId) {
+             const hour = payload.new.hour;
+             const date = payload.new.date;
+             
+             // Play sound
+             playNotification();
+             
+             // Show alert
+             showNotification(`${t.newBookingAlert} ${date} @ ${hour}:00`);
+             
+             // Telegram Haptic
+             if (window.Telegram?.WebApp) {
+                 window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+             }
+        }
+
         fetchAllBookings();
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); }
-  }, [managedCourtId]);
+  }, [managedCourtId, soundEnabled]); // Add soundEnabled to dependencies so the closure uses fresh state
 
   // 1. Calculate which dates have ANY bookings (for Calendar dots)
   const bookedDatesSet = useMemo(() => {
@@ -214,8 +262,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
           return;
       }
 
-      if (newPin.length !== 4) {
-          setSaveMessage({ text: "PIN must be 4 digits", type: 'error' });
+      if (newPin.length !== 6) {
+          setSaveMessage({ text: lang === 'az' ? 'PIN 6 rəqəm olmalıdır' : (lang === 'ru' ? 'PIN должен быть 6 цифр' : 'PIN must be 6 digits'), type: 'error' });
+          return;
+      }
+
+      // Check collision with other courts (Basic collision check against defaults)
+      const isTaken = allCourts.some(c => c.pin === newPin && c.id !== court.id);
+      if (isTaken) {
+          setSaveMessage({ 
+              text: lang === 'az' ? 'Bu PIN artıq istifadə olunur!' : (lang === 'ru' ? 'Этот PIN уже занят!' : 'PIN already in use!'), 
+              type: 'error' 
+          });
           return;
       }
 
@@ -255,6 +313,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
   return (
     <div className="animate-in fade-in duration-500 pb-20 relative">
       
+      {/* ---------------- ALERT NOTIFICATION ---------------- */}
+      {notification && notification.visible && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-sm">
+            <div className="bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center justify-between animate-in slide-in-from-top-10 fade-in duration-300 border border-slate-700">
+                <div className="flex items-center gap-3">
+                    <div className="bg-emerald-500 w-2 h-2 rounded-full animate-pulse"></div>
+                    <span className="font-bold text-sm">{notification.message}</span>
+                </div>
+                <button onClick={() => setNotification(prev => prev ? {...prev, visible: false} : null)} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+        </div>
+      )}
+
       {/* ---------------- MODAL ---------------- */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -362,8 +433,26 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
         >
             <span className="mr-2 text-xl">‹</span> {t.backToDashboard}
         </button>
-        <div className="text-xs font-bold bg-slate-100 text-slate-500 px-3 py-1 rounded-full">
-            Admin Mode
+        <div className="flex items-center gap-2">
+            <button 
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                className={`flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${soundEnabled ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}
+            >
+                {soundEnabled ? (
+                    <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                        {t.soundOn}
+                    </>
+                ) : (
+                    <>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM12.293 7.293a1 1 0 011.414 1.414L10.414 12l3.293 3.293a1 1 0 01-1.414 1.414L9 13.414l-3.293 3.293a1 1 0 01-1.414-1.414L7.586 12 4.293 8.707a1 1 0 011.414-1.414L9 10.586l3.293-3.293z" clipRule="evenodd" /></svg>
+                        {t.soundOff}
+                    </>
+                )}
+            </button>
+            <div className="text-xs font-bold bg-slate-100 text-slate-500 px-3 py-1 rounded-full">
+                Admin Mode
+            </div>
         </div>
       </div>
 
@@ -423,9 +512,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                               type="password"
                               value={oldPin}
                               onChange={(e) => setOldPin(e.target.value)}
-                              maxLength={4}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-slate-400"
-                              placeholder="••••"
+                              maxLength={6}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-slate-400 text-center text-lg"
+                              placeholder="••••••"
                           />
                       </div>
                       <div>
@@ -436,10 +525,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                               type="password"
                               value={newPin}
                               onChange={(e) => setNewPin(e.target.value)}
-                              maxLength={4}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-slate-400"
-                              placeholder="••••"
+                              maxLength={6}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-slate-400 text-center text-lg"
+                              placeholder="••••••"
                           />
+                          <p className="text-[10px] text-slate-400 mt-1 text-center">
+                              {lang === 'az' ? 'Təhlükəsizlik üçün 6 rəqəmli kod daxil edin' : (lang === 'ru' ? 'Введите 6 цифр для безопасности' : 'Enter 6 digits for security')}
+                          </p>
                       </div>
 
                       {saveMessage.text && (
@@ -450,7 +542,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
 
                       <button 
                           onClick={handlePinChange}
-                          disabled={oldPin.length < 4 || newPin.length < 4}
+                          disabled={oldPin.length < 6 || newPin.length < 6}
                           className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 mt-4 disabled:opacity-50"
                       >
                           {t.saveChanges}

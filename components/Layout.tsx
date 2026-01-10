@@ -6,12 +6,16 @@ interface LayoutProps {
   children: React.ReactNode;
   lang: 'az' | 'ru' | 'en';
   onLangChange: (lang: 'az' | 'ru' | 'en') => void;
+  onSecretTrigger?: () => void; // New prop for the secret door
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange }) => {
+const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretTrigger }) => {
   const t = TRANSLATIONS[lang];
   const isTg = typeof window !== 'undefined' && !!window.Telegram?.WebApp?.initDataUnsafe;
   const [isDbReal, setIsDbReal] = useState(false);
+
+  // Secret Trigger Logic
+  const [logoTapCount, setLogoTapCount] = useState(0);
 
   useEffect(() => {
     // Check if we are using the real Supabase client
@@ -19,6 +23,28 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange }) => {
     const isReal = !!supabase.auth && !supabase.hasOwnProperty('getDb');
     setIsDbReal(isReal);
   }, []);
+
+  const handleLogoTap = () => {
+      const newCount = logoTapCount + 1;
+      setLogoTapCount(newCount);
+
+      // If 5 taps happen
+      if (newCount >= 5) {
+          if (onSecretTrigger) {
+              onSecretTrigger();
+              // Haptic feedback if in Telegram
+              if (window.Telegram?.WebApp) {
+                  window.Telegram.WebApp.HapticFeedback.notificationOccurred('warning');
+              }
+          }
+          setLogoTapCount(0);
+      }
+
+      // Reset count if user stops tapping for 1 second
+      setTimeout(() => {
+          setLogoTapCount(0);
+      }, 1000);
+  };
 
   return (
     // Changed pb-safe to pb-[env(safe-area-inset-bottom)] for robust iOS fullscreen support
@@ -32,7 +58,7 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange }) => {
         }}
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center space-x-2 cursor-pointer" onClick={() => !isTg && window.location.reload()}>
+          <div className="flex items-center space-x-2 cursor-pointer select-none" onClick={handleLogoTap}>
             <div className="bg-indigo-600 p-1.5 md:p-2 rounded-lg transition-colors">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
