@@ -5,6 +5,7 @@ import { Court } from '../types';
 import Calendar from './Calendar';
 import TimeGrid from './TimeGrid';
 import { supabase } from '../lib/supabase';
+import { formatDateLocal } from '../App'; // Import the new helper
 
 interface AdminDashboardProps {
   lang: 'az' | 'ru' | 'en';
@@ -87,7 +88,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
 
   // 2. Calculate bookings for the CURRENTLY selected date (for TimeGrid colors)
   const dayBookings = useMemo(() => {
-    const dateKey = selectedDate.toISOString().split('T')[0];
+    // FIX: Use local format to match DB strings correctly
+    const dateKey = formatDateLocal(selectedDate);
     return localBookings.filter(b => b.dateStr === dateKey);
   }, [selectedDate, localBookings]);
 
@@ -148,7 +150,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
 
         if (bookingType === 'hourly') {
             // SINGLE BOOKING
-            const dateStr = selectedDate.toISOString().split('T')[0];
+            // FIX: Use local format
+            const dateStr = formatDateLocal(selectedDate);
             newRows.push({
                 court_id: managedCourtId,
                 date: dateStr,
@@ -167,7 +170,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
             for (let i = 0; i < iterations; i++) {
                 const nextDate = new Date(selectedDate);
                 nextDate.setDate(selectedDate.getDate() + (i * 7)); // +7 days for each week
-                const dateStr = nextDate.toISOString().split('T')[0];
+                // FIX: Use local format for future dates too
+                const dateStr = formatDateLocal(nextDate);
                 
                 newRows.push({
                     court_id: managedCourtId,
