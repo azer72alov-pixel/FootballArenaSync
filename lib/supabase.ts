@@ -3,24 +3,40 @@ import { createClient } from '@supabase/supabase-js';
 // ==========================================
 // 🚨 ВСТАВЬТЕ ВАШИ ДАННЫЕ ИЗ SUPABASE НИЖЕ 🚨
 // ==========================================
-const MANUAL_SUPABASE_URL = "sb_publishable_ZVE0E6RBvzYO6HdOUmD7YQ_Zq4lSmAa"; // Сюда вставьте ваш Project URL
-const MANUAL_SUPABASE_KEY = "https://xxyeevnxxfkbdafyeexc.supabase.co"; // Сюда вставьте ваш anon public key
+const MANUAL_SUPABASE_URL = ""; // Сюда ваш URL
+const MANUAL_SUPABASE_KEY = ""; // Сюда ваш Ключ
 
-// Используем переменные окружения или ручной ввод
-const supabaseUrl = process.env.VITE_SUPABASE_URL || MANUAL_SUPABASE_URL;
-const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || MANUAL_SUPABASE_KEY;
+// Безопасное получение переменных (защита от белого экрана)
+const getEnv = (name: string): string | undefined => {
+  try {
+    // Пробуем получить из Vite (import.meta.env)
+    // @ts-ignore
+    if (import.meta.env && import.meta.env[name]) return import.meta.env[name];
+    
+    // Пробуем получить из process.env (если Vercel/Vite их подставил)
+    if (typeof process !== 'undefined' && process.env) {
+      return (process.env as any)[name];
+    }
+  } catch (e) {
+    console.warn(`Could not find env variable: ${name}`);
+  }
+  return undefined;
+};
+
+const supabaseUrl = getEnv('VITE_SUPABASE_URL') || MANUAL_SUPABASE_URL;
+const supabaseAnonKey = getEnv('VITE_SUPABASE_ANON_KEY') || MANUAL_SUPABASE_KEY;
 
 const isValidKey = (key: string | undefined) => 
   key && 
   key.length > 10 && 
   !key.includes('your-project') && 
-  key !== 'undefined';
+  key !== 'undefined' &&
+  key !== '';
 
 const hasRealKeys = isValidKey(supabaseUrl) && isValidKey(supabaseAnonKey);
 
-// --- ЗАПАСНОЙ ВАРИАНТ (Если ключи не введены) ---
 const createMockClient = () => {
-  console.log('⚠️ Ключи не найдены. Работает в локальном режиме (БЕЗ СИНХРОНИЗАЦИИ).');
+  console.log('⚠️ Работа в локальном режиме (Offline Mock Mode).');
   const STORAGE_KEY = 'mock_bookings_db_v3';
   const getDb = () => {
       try {
@@ -31,7 +47,11 @@ const createMockClient = () => {
   const setDb = (data: any[]) => {
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) {}
   };
-  const mockChannel = { on: () => mockChannel, subscribe: () => mockChannel, unsubscribe: () => {} };
+  const mockChannel = { 
+    on: () => mockChannel, 
+    subscribe: () => mockChannel, 
+    unsubscribe: () => {} 
+  };
   return {
     from: (table: string) => ({
       select: () => ({
@@ -93,6 +113,7 @@ const createMockClient = () => {
   } as any;
 };
 
+// Если ключи есть — подключаемся к базе, если нет — используем имитацию (безопасно)
 export const supabase = hasRealKeys
   ? createClient(supabaseUrl!, supabaseAnonKey!)
   : createMockClient();
