@@ -92,6 +92,14 @@ export const TRANSLATIONS = {
     soundOff: "Səs bağlı",
     newBookingAlert: "🔔 Yeni Rezervasiya!",
     justBooked: "indicə rezerv edildi",
+    venueQr: "Obyekt QR Kodu",
+    scanToBook: "Müştərilər üçün dərhal rezervasiya",
+    printQr: "QR-i Yüklə / Çap et",
+    // New Translations
+    shareApp: "Tətbiqi Paylaş",
+    scanToOpenApp: "Bu QR-i skan edərək tətbiqi başladın",
+    close: "Bağla",
+    copyLink: "Linki Kopyala",
     // Super Admin Specific
     ownerMode: "Sahib Rejimi",
     platformOverview: "Platforma İcmalı",
@@ -197,6 +205,14 @@ export const TRANSLATIONS = {
     soundOff: "Звук выкл.",
     newBookingAlert: "🔔 Новая бронь!",
     justBooked: "только что забронировано",
+    venueQr: "QR-код Площадки",
+    scanToBook: "Сканируйте для быстрого бронирования",
+    printQr: "Скачать / Распечатать",
+    // New Translations
+    shareApp: "Поделиться приложением",
+    scanToOpenApp: "Сканируйте QR, чтобы запустить приложение",
+    close: "Закрыть",
+    copyLink: "Копировать ссылку",
     // Super Admin Specific
     ownerMode: "Режим Владельца",
     platformOverview: "Обзор Платформы",
@@ -302,6 +318,14 @@ export const TRANSLATIONS = {
     soundOff: "Sound Off",
     newBookingAlert: "🔔 New Booking!",
     justBooked: "just booked",
+    venueQr: "Venue QR Code",
+    scanToBook: "Scan to book instantly",
+    printQr: "Download / Print",
+    // New Translations
+    shareApp: "Share App",
+    scanToOpenApp: "Scan this QR to launch the app",
+    close: "Close",
+    copyLink: "Copy Link",
     // Super Admin Specific
     ownerMode: "Owner Mode",
     platformOverview: "Platform Overview",

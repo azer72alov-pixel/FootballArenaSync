@@ -6,6 +6,13 @@ import { Court, Subscription } from './types';
 export const SUPER_ADMIN_PIN = '999999'; // <-- ВАШ КОД СУПЕР-АДМИНА (Меняйте здесь)
 
 // =================================================================
+// 🤖 BOT CONFIGURATION
+// Ссылка на ваше Mini App. Замените на реальную ссылку вашего бота!
+// Например: https://t.me/MyArenaBot/app
+// =================================================================
+export const PLATFORM_BOT_LINK = 'https://t.me/ArenaSyncBot/app';
+
+// =================================================================
 // 🔔 TELEGRAM CONFIGURATION
 // 1. BOT_TOKEN: Используйте токен того самого бота, в котором работает ваше приложение.
 //    (Не нужно создавать нового, возьмите токен из @BotFather для текущего бота).
@@ -14,7 +21,7 @@ export const SUPER_ADMIN_PIN = '999999'; // <-- ВАШ КОД СУПЕР-АДМ�
 // =================================================================
 export const NOTIFICATION_CONFIG = {
     // Вставьте сюда токен вашего существующего бота
-    BOT_TOKEN: '8517079073:AAFI9EUqorSj0v0NLcWAEZ8375i5OgfauDk' 
+    BOT_TOKEN: '' 
 };
 
 export const COURTS: Court[] = [

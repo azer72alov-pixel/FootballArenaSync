@@ -66,6 +66,20 @@ const App: React.FC = () => {
     if (storedSuspended) {
         setSuspendedCourts(JSON.parse(storedSuspended));
     }
+
+    // --- DEEP LINKING HANDLER ---
+    // Check for ?court=ID in URL to open specific booking page immediately
+    const params = new URLSearchParams(window.location.search);
+    const courtIdParam = params.get('court');
+    if (courtIdParam) {
+        const targetCourt = COURTS.find(c => c.id === courtIdParam);
+        if (targetCourt) {
+            setSelectedCourt(targetCourt);
+            setView('booking');
+            // Optional: Clean URL
+            window.history.replaceState({}, '', window.location.pathname);
+        }
+    }
   }, []);
 
   const t = TRANSLATIONS[lang];
