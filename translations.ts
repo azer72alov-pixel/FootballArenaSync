@@ -1,3 +1,4 @@
+
 export const TRANSLATIONS = {
   az: {
     findCourts: "Meydançalar",
@@ -86,7 +87,11 @@ export const TRANSLATIONS = {
     pinError: "Xəta: Cari PIN yanlışdır.",
     enterPin: "Obyekt PIN kodunu daxil edin",
     invalidPin: "Yanlış PIN kod",
-    adminLogin: "Admin Girişi"
+    adminLogin: "Admin Girişi",
+    soundOn: "Səs açıq",
+    soundOff: "Səs bağlı",
+    newBookingAlert: "🔔 Yeni Rezervasiya!",
+    justBooked: "indicə rezerv edildi"
   },
   ru: {
     findCourts: "Площадки",
@@ -175,7 +180,11 @@ export const TRANSLATIONS = {
     pinError: "Ошибка: Неверный текущий PIN.",
     enterPin: "Введите PIN-код объекта",
     invalidPin: "Неверный PIN код",
-    adminLogin: "Вход в админку"
+    adminLogin: "Вход в админку",
+    soundOn: "Звук вкл.",
+    soundOff: "Звук выкл.",
+    newBookingAlert: "🔔 Новая бронь!",
+    justBooked: "только что забронировано"
   },
   en: {
     findCourts: "Courts",
@@ -264,6 +273,10 @@ export const TRANSLATIONS = {
     pinError: "Error: Incorrect current PIN.",
     enterPin: "Enter Facility PIN",
     invalidPin: "Invalid PIN code",
-    adminLogin: "Admin Login"
+    adminLogin: "Admin Login",
+    soundOn: "Sound On",
+    soundOff: "Sound Off",
+    newBookingAlert: "🔔 New Booking!",
+    justBooked: "just booked"
   }
 };

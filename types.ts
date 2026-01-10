@@ -11,6 +11,8 @@ export interface Court {
   address: string;
   mapUrl: string;
   pin: string; // Unique PIN for admin access
+  status?: 'active' | 'suspended'; // New field for platform control
+  telegramChatId?: string; // ID администратора этой конкретной площадки
 }
 
 export interface Booking {
