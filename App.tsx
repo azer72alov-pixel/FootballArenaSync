@@ -125,6 +125,9 @@ const App: React.FC = () => {
                 const msg = lang === 'az' ? '🛑 Bu vaxt artıq tutulub!' : (lang === 'ru' ? '🛑 Это время только что заняли!' : '🛑 Already booked!');
                 tg?.showPopup ? tg.showPopup({ title: 'Error', message: msg, buttons: [{type: 'ok'}] }) : showToast(msg, 'error');
                 fetchBookings();
+            } else if (error.message.includes('row-level security')) {
+                // СПЕЦИАЛЬНОЕ СООБЩЕНИЕ ДЛЯ RLS ОШИБКИ
+                showToast("DB SETUP ERROR: Run RLS Policies SQL in Supabase!", 'error');
             } else {
                 showToast(`Error: ${error.message}`, 'error');
             }
