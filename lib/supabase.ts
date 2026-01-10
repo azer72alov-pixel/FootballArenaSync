@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 // ==========================================
 // 🚨 ВСТАВЬТЕ ВАШИ ДАННЫЕ ИЗ SUPABASE НИЖЕ 🚨
 // ==========================================
-const MANUAL_SUPABASE_URL = ""; // Сюда ваш URL
-const MANUAL_SUPABASE_KEY = ""; // Сюда ваш Ключ
+const MANUAL_SUPABASE_URL = "https://xxyeevnxxfkbdafyeexc.supabase.co"; // Сюда ваш URL
+const MANUAL_SUPABASE_KEY = "sb_publishable_ZVE0E6RBvzYO6HdOUmD7YQ_Zq4lSmAa"; // Сюда ваш Ключ
 
 // Безопасное получение переменных (защита от белого экрана)
 const getEnv = (name: string): string | undefined => {
