@@ -74,7 +74,7 @@ export const TRANSLATIONS = {
     totalTotal: "Yekun",
     futureDates: "Gələcək tarixlər:",
     tabHourly: "Saatlıq Rezerv",
-    tabSubscriptions: "Abunəlik İdarəetməsi",
+    tabSubscriptions: "Abunəliklər",
     hourlyBookings: "Saatlıq Rezervlər",
     subscriptionBookings: "Abunəlik Siyahısı",
     tabSettings: "Tənzimləmələr",
@@ -95,7 +95,6 @@ export const TRANSLATIONS = {
     venueQr: "Obyekt QR Kodu",
     scanToBook: "Müştərilər üçün dərhal rezervasiya",
     printQr: "QR-i Yüklə / Çap et",
-    // New Translations
     shareApp: "Tətbiqi Paylaş",
     scanToOpenApp: "Bu QR-i skan edərək tətbiqi başladın",
     close: "Bağla",
@@ -109,7 +108,6 @@ export const TRANSLATIONS = {
     modeSubscription: "Abunə paketi",
     chooseYourPlan: "Paketinizi seçin",
     planIncludes: "Daxildir:",
-    // Super Admin Specific
     ownerMode: "Sahib Rejimi",
     platformOverview: "Platforma İcmalı",
     managePartners: "Partnyorları idarə edin və gəlirləri izləyin.",
@@ -121,13 +119,36 @@ export const TRANSLATIONS = {
     active: "Aktiv",
     activatePartner: "Aktivləşdir",
     suspendAccess: "Dayandır",
-    // Price Management
     priceSettings: "Qiymət Tənzimləmələri",
     pricePerHourLabel: "Saatlıq qiymət (AZN)",
     updatePrice: "Qiyməti yenilə",
     priceUpdated: "Qiymət uğurla yeniləndi!",
     priceUpdateError: "Xəta: Qiymət düzgün deyil.",
-    subscriptionPriceLabel: "Abunəlik qiyməti (Paket)"
+    subscriptionPriceLabel: "Abunəlik qiyməti (Paket)",
+    // Sections
+    tabSections: "Seksiyalar",
+    createSection: "Yeni Seksiya",
+    sectionName: "Qrup Adı",
+    selectDays: "Günləri Seçin",
+    selectTime: "Vaxt",
+    duration: "Müddət",
+    addSection: "Seksiya Əlavə Et",
+    trainingDays: "Məşq Günləri",
+    sectionAdded: "Seksiya cədvələ əlavə edildi!",
+    deleteSection: "Seksiyanı Sil",
+    weekDays: {
+        0: "Bazar", 1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI"
+    },
+    sectionLegend: "Seksiya",
+    // Chat
+    chatTitle: "ArenaChat",
+    chatPlaceholder: "Mesajınızı yazın...",
+    chatWelcome: "Salam! 👋 Sizə necə kömək edə bilərəm?",
+    chatSend: "Göndər",
+    online: "Onlayn",
+    voiceMessage: "Səsli mesaj",
+    listening: "Dinləyirəm...",
+    recording: "Yazılır..."
   },
   ru: {
     findCourts: "Площадки",
@@ -224,7 +245,6 @@ export const TRANSLATIONS = {
     venueQr: "QR-код Площадки",
     scanToBook: "Сканируйте для быстрого бронирования",
     printQr: "Скачать / Распечатать",
-    // New Translations
     shareApp: "Поделиться приложением",
     scanToOpenApp: "Сканируйте QR, чтобы запустить приложение",
     close: "Закрыть",
@@ -238,7 +258,6 @@ export const TRANSLATIONS = {
     modeSubscription: "Абонемент",
     chooseYourPlan: "Выберите тариф",
     planIncludes: "Входит:",
-    // Super Admin Specific
     ownerMode: "Режим Владельца",
     platformOverview: "Обзор Платформы",
     managePartners: "Управление партнерами и доход.",
@@ -250,13 +269,36 @@ export const TRANSLATIONS = {
     active: "Активен",
     activatePartner: "Активировать",
     suspendAccess: "Приостановить",
-    // Price Management
     priceSettings: "Настройка Цен",
     pricePerHourLabel: "Цена за час (AZN)",
     updatePrice: "Обновить цену",
     priceUpdated: "Цена успешно обновлена!",
     priceUpdateError: "Ошибка: Некорректная цена.",
-    subscriptionPriceLabel: "Цена Абонемента (Пакет)"
+    subscriptionPriceLabel: "Цена Абонемента (Пакет)",
+    // Sections
+    tabSections: "Секции",
+    createSection: "Новая Секция",
+    sectionName: "Название группы",
+    selectDays: "Выберите дни",
+    selectTime: "Время",
+    duration: "Длительность",
+    addSection: "Добавить секцию",
+    trainingDays: "Дни тренировок",
+    sectionAdded: "Секция добавлена в расписание!",
+    deleteSection: "Удалить секцию",
+    weekDays: {
+        0: "Вс", 1: "Пн", 2: "Вт", 3: "Ср", 4: "Чт", 5: "Пт", 6: "Сб"
+    },
+    sectionLegend: "Секция",
+    // Chat
+    chatTitle: "ArenaChat",
+    chatPlaceholder: "Введите сообщение...",
+    chatWelcome: "Привет! 👋 Чем могу помочь с бронированием?",
+    chatSend: "Отправить",
+    online: "Онлайн",
+    voiceMessage: "Голосовое сообщение",
+    listening: "Слушаю...",
+    recording: "Запись..."
   },
   en: {
     findCourts: "Courts",
@@ -353,7 +395,6 @@ export const TRANSLATIONS = {
     venueQr: "Venue QR Code",
     scanToBook: "Scan to book instantly",
     printQr: "Download / Print",
-    // New Translations
     shareApp: "Share App",
     scanToOpenApp: "Scan this QR to launch the app",
     close: "Close",
@@ -367,7 +408,6 @@ export const TRANSLATIONS = {
     modeSubscription: "Team Package",
     chooseYourPlan: "Choose Your Plan",
     planIncludes: "Includes:",
-    // Super Admin Specific
     ownerMode: "Owner Mode",
     platformOverview: "Platform Overview",
     managePartners: "Manage your partners and monitor revenue.",
@@ -379,12 +419,35 @@ export const TRANSLATIONS = {
     active: "Active",
     activatePartner: "Activate Partner",
     suspendAccess: "Suspend Access",
-    // Price Management
     priceSettings: "Price Settings",
     pricePerHourLabel: "Price Per Hour (AZN)",
     updatePrice: "Update Price",
     priceUpdated: "Price updated successfully!",
     priceUpdateError: "Error: Invalid price.",
-    subscriptionPriceLabel: "Subscription Price (Package)"
+    subscriptionPriceLabel: "Subscription Price (Package)",
+    // Sections
+    tabSections: "Sections",
+    createSection: "New Section",
+    sectionName: "Group Name",
+    selectDays: "Select Days",
+    selectTime: "Time",
+    duration: "Duration",
+    addSection: "Add Section",
+    trainingDays: "Training Days",
+    sectionAdded: "Section added to schedule!",
+    deleteSection: "Delete Section",
+    weekDays: {
+        0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat"
+    },
+    sectionLegend: "Training",
+    // Chat
+    chatTitle: "ArenaChat",
+    chatPlaceholder: "Type a message...",
+    chatWelcome: "Hello! 👋 How can I help you book a court today?",
+    chatSend: "Send",
+    online: "Online",
+    voiceMessage: "Voice Message",
+    listening: "Listening...",
+    recording: "Recording..."
   }
 };

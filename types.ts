@@ -23,7 +23,7 @@ export interface Booking {
   startTime: number; // 0-23
   duration: number; // in hours
   userName: string;
-  type: 'hourly' | 'subscription';
+  type: 'hourly' | 'subscription' | 'section'; // Added 'section'
   amount: number;
   status: 'pending' | 'paid' | 'cancelled';
 }
@@ -35,6 +35,16 @@ export interface Subscription {
   hours: number;
   features: string[];
   color: string;
+}
+
+export interface Section {
+  id: string;
+  name: string;
+  days: number[]; // 0 = Sunday, 1 = Monday, etc.
+  startHour: number;
+  duration: number;
+  pricePerStudent?: number;
+  color?: string;
 }
 
 // Minimal Telegram WebApp types

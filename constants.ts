@@ -21,7 +21,7 @@ export const PLATFORM_BOT_LINK = 'https://t.me/ArenaSyncBot/app';
 // =================================================================
 export const NOTIFICATION_CONFIG = {
     // Вставьте сюда токен вашего существующего бота
-    BOT_TOKEN: '8517079073:AAFI9EUqorSj0v0NLcWAEZ8375i5OgfauDk' 
+    BOT_TOKEN: '' 
 };
 
 export const COURTS: Court[] = [
@@ -104,5 +104,5 @@ export const SUBSCRIPTIONS: Subscription[] = [
   }
 ];
 
-// 17:00 to 23:00 (Evening slots only due to sport sections in morning/afternoon)
-export const BUSINESS_HOURS = Array.from({ length: 7 }, (_, i) => i + 17);
+// Full day schedule: 09:00 to 23:00 (15 hours)
+export const BUSINESS_HOURS = Array.from({ length: 15 }, (_, i) => i + 9);

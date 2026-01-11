@@ -1,5 +1,7 @@
 {
   "name": "ArenaSync - Pro Sports Booking",
   "description": "A high-end sports facility reservation platform featuring a 6-month interactive calendar, hourly booking slots, and tiered subscription plans.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }

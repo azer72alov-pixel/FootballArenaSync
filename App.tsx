@@ -6,7 +6,7 @@ import TimeGrid from './components/TimeGrid';
 import AdminDashboard from './components/AdminDashboard';
 import SuperAdminDashboard from './components/SuperAdminDashboard';
 import { COURTS, NOTIFICATION_CONFIG, SUPER_ADMIN_PIN, SUBSCRIPTIONS } from './constants';
-import { Court, Subscription } from './types';
+import { Court, Subscription, Section } from './types';
 import { TRANSLATIONS } from './translations';
 import { supabase } from './supabase';
 
@@ -122,11 +122,44 @@ const App: React.FC = () => {
         if (!selectedCourt) return;
         const dateStr = formatDateLocal(selectedDate);
         
+        // 1. Fetch Real Bookings from DB
         const { data } = await supabase.from('bookings').select('hour, type').eq('court_id', selectedCourt.id).eq('date', dateStr);
+        
+        let dbReserved: number[] = [];
+        let dbDetailBookings: {hour: number, type: string}[] = [];
+
         if (data) {
-            setReservedHours(data.map((b: any) => b.hour));
-            setDayBookings(data.map((b: any) => ({ hour: b.hour, type: b.type })));
+            dbReserved = data.map((b: any) => b.hour);
+            dbDetailBookings = data.map((b: any) => ({ hour: b.hour, type: b.type }));
         }
+
+        // 2. Fetch Sections (Recurring training schedules)
+        const storedSections = localStorage.getItem(`court_sections_${selectedCourt.id}`);
+        const sections: Section[] = storedSections ? JSON.parse(storedSections) : [];
+        
+        const dayOfWeek = selectedDate.getDay(); // 0 = Sun, 1 = Mon ...
+        const activeSections = sections.filter(s => s.days.includes(dayOfWeek));
+
+        const sectionReserved: number[] = [];
+        const sectionDetailBookings: {hour: number, type: string}[] = [];
+
+        activeSections.forEach(s => {
+            for(let i=0; i < s.duration; i++) {
+                const h = s.startHour + i;
+                sectionReserved.push(h);
+                sectionDetailBookings.push({ hour: h, type: 'section' });
+            }
+        });
+
+        // 3. Merge Bookings and Sections
+        const combinedReserved = Array.from(new Set([...dbReserved, ...sectionReserved]));
+        
+        // Combine details, DB takes priority if conflict (though shouldn't happen logic wise)
+        const combinedDetails = [...dbDetailBookings, ...sectionDetailBookings];
+
+        setReservedHours(combinedReserved);
+        setDayBookings(combinedDetails);
+
   }, [selectedCourt, selectedDate]);
 
   const fetchOccupiedDates = useCallback(async () => {
