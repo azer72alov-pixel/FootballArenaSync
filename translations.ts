@@ -140,15 +140,28 @@ export const TRANSLATIONS = {
         0: "Bazar", 1: "I", 2: "II", 3: "III", 4: "IV", 5: "V", 6: "VI"
     },
     sectionLegend: "Seksiya",
-    // Chat
-    chatTitle: "ArenaChat",
-    chatPlaceholder: "Mesajınızı yazın...",
-    chatWelcome: "Salam! 👋 Sizə necə kömək edə bilərəm?",
+    // Announcements / Chat
+    chatTitle: "Məşqçi Lövhəsi",
+    chatPlaceholder: "Valideynlər yalnız oxuya bilər",
+    chatWelcome: "Burada məşqçidən gələn vacib elanlar görünəcək.",
     chatSend: "Göndər",
-    online: "Onlayn",
+    online: "Online",
     voiceMessage: "Səsli mesaj",
     listening: "Dinləyirəm...",
-    recording: "Yazılır..."
+    recording: "Yazılır...",
+    tabAnnouncements: "Elanlar",
+    postAnnouncement: "Elan Paylaş",
+    typeAnnouncement: "Elan mətnini yazın (valideynlər üçün)...",
+    announcementPosted: "Elan paylaşıldı!",
+    noAnnouncements: "Hələlik elan yoxdur.",
+    selectYourTeam: "Komandanızı seçin",
+    selectTeamDesc: "Hansı qrupun valideynisiniz?",
+    allSections: "Bütün Qruplar",
+    changeTeam: "Komandanı dəyiş",
+    targetAudience: "Kimə göndərilsin?",
+    allParents: "Bütün Valideynlər",
+    parentAccess: "Valideyn Girişi",
+    parentAccessDesc: "Məşq cədvəli və elanlar"
   },
   ru: {
     findCourts: "Площадки",
@@ -290,15 +303,28 @@ export const TRANSLATIONS = {
         0: "Вс", 1: "Пн", 2: "Вт", 3: "Ср", 4: "Чт", 5: "Пт", 6: "Сб"
     },
     sectionLegend: "Секция",
-    // Chat
-    chatTitle: "ArenaChat",
-    chatPlaceholder: "Введите сообщение...",
-    chatWelcome: "Привет! 👋 Чем могу помочь с бронированием?",
+    // Announcements / Chat
+    chatTitle: "Доска Тренера",
+    chatPlaceholder: "Только для чтения",
+    chatWelcome: "Здесь будут важные объявления от тренера.",
     chatSend: "Отправить",
     online: "Онлайн",
     voiceMessage: "Голосовое сообщение",
     listening: "Слушаю...",
-    recording: "Запись..."
+    recording: "Запись...",
+    tabAnnouncements: "Объявления",
+    postAnnouncement: "Создать объявление",
+    typeAnnouncement: "Текст объявления для родителей...",
+    announcementPosted: "Объявление опубликовано!",
+    noAnnouncements: "Пока нет объявлений.",
+    selectYourTeam: "Выберите команду",
+    selectTeamDesc: "В какой группе ваш ребенок?",
+    allSections: "Все группы",
+    changeTeam: "Сменить команду",
+    targetAudience: "Кому отправить?",
+    allParents: "Все родители",
+    parentAccess: "Вход для родителей",
+    parentAccessDesc: "Расписание и объявления"
   },
   en: {
     findCourts: "Courts",
@@ -440,14 +466,27 @@ export const TRANSLATIONS = {
         0: "Sun", 1: "Mon", 2: "Tue", 3: "Wed", 4: "Thu", 5: "Fri", 6: "Sat"
     },
     sectionLegend: "Training",
-    // Chat
-    chatTitle: "ArenaChat",
-    chatPlaceholder: "Type a message...",
-    chatWelcome: "Hello! 👋 How can I help you book a court today?",
+    // Announcements / Chat
+    chatTitle: "Coach Board",
+    chatPlaceholder: "Read-only for parents",
+    chatWelcome: "Important announcements from the coach will appear here.",
     chatSend: "Send",
     online: "Online",
     voiceMessage: "Voice Message",
     listening: "Listening...",
-    recording: "Recording..."
+    recording: "Recording...",
+    tabAnnouncements: "Announcements",
+    postAnnouncement: "Post Announcement",
+    typeAnnouncement: "Type announcement for parents...",
+    announcementPosted: "Announcement posted!",
+    noAnnouncements: "No announcements yet.",
+    selectYourTeam: "Select Your Team",
+    selectTeamDesc: "Which group is your child in?",
+    allSections: "All Groups",
+    changeTeam: "Change Team",
+    targetAudience: "Send to?",
+    allParents: "All Parents",
+    parentAccess: "Parent Access",
+    parentAccessDesc: "Training schedule & news"
   }
 };

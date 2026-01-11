@@ -1,3 +1,4 @@
+
 export type CourtType = 'Football';
 
 export interface Court {
@@ -47,6 +48,25 @@ export interface Section {
   color?: string;
 }
 
+export interface Announcement {
+  id: number;
+  court_id: string;
+  section_id?: string | null; // Added: Target specific section or null for all
+  message: string;
+  created_at: string;
+  sender_name: string;
+}
+
+// PWA Install Prompt Event
+export interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: string[];
+  readonly userChoice: Promise<{
+    outcome: 'accepted' | 'dismissed';
+    platform: string;
+  }>;
+  prompt(): Promise<void>;
+}
+
 // Minimal Telegram WebApp types
 export interface TelegramWebApp {
   ready: () => void;
@@ -82,6 +102,8 @@ export interface TelegramWebApp {
     hide: () => void;
     onClick: (callback: () => void) => void;
     offClick: (callback: () => void) => void;
+    showProgress: (leaveActive: boolean) => void;
+    hideProgress: () => void;
   };
   HapticFeedback: {
     impactOccurred: (style: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft') => void;
@@ -114,5 +136,8 @@ declare global {
     Telegram?: {
       WebApp: TelegramWebApp;
     };
+  }
+  interface WindowEventMap {
+    beforeinstallprompt: BeforeInstallPromptEvent;
   }
 }
