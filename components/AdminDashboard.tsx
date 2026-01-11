@@ -19,8 +19,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
   const t = TRANSLATIONS[lang];
   const court = allCourts.find(c => c.id === managedCourtId);
 
-  // Tab State: Added 'sections'
-  const [activeTab, setActiveTab] = useState<'hourly' | 'subscription' | 'settings' | 'sections'>('hourly');
+  // Tab State: Added 'announcements'
+  const [activeTab, setActiveTab] = useState<'hourly' | 'subscription' | 'settings' | 'sections' | 'announcements'>('hourly');
 
   // Calendar State
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -45,6 +45,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
   const [newSectionDays, setNewSectionDays] = useState<number[]>([]);
   const [newSectionStart, setNewSectionStart] = useState(16);
   const [newSectionDuration, setNewSectionDuration] = useState(2);
+
+  // Announcement State
+  const [announcementText, setAnnouncementText] = useState('');
+  const [targetSectionId, setTargetSectionId] = useState<string>('all'); // 'all' or section UUID
 
   // Sound & Notification State
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -174,7 +178,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
 
   // 3. Filter bookings for the Bottom Table based on Active Tab
   const tableBookings = useMemo(() => {
-      if (activeTab === 'settings' || activeTab === 'sections') return [];
+      if (activeTab === 'settings' || activeTab === 'sections' || activeTab === 'announcements') return [];
       return localBookings.filter(b => b.type === activeTab);
   }, [localBookings, activeTab]);
 
@@ -279,6 +283,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
       setSaveMessage({ text: t.pinUpdated, type: 'success' });
       setOldPin(''); setNewPin('');
       setTimeout(() => setSaveMessage({ text: '', type: '' }), 3000);
+  };
+
+  const handlePostAnnouncement = async () => {
+      if (!announcementText.trim()) return;
+
+      const payload = {
+          court_id: managedCourtId,
+          section_id: targetSectionId === 'all' ? null : targetSectionId,
+          message: announcementText,
+          sender_name: court?.name || 'Coach',
+          created_at: new Date().toISOString()
+      };
+
+      const { error } = await supabase.from('announcements').insert([payload]);
+
+      if (!error) {
+          setAnnouncementText('');
+          showNotification(t.announcementPosted);
+          if (window.Telegram?.WebApp) {
+              window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+          }
+      } else {
+          showNotification("Error posting announcement");
+      }
   };
 
   // Section Management Handlers
@@ -518,6 +546,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
               {t.tabSections}
           </button>
           <button 
+            onClick={() => setActiveTab('announcements')}
+            className={`flex-1 min-w-[100px] py-3 rounded-xl font-bold text-sm transition-all duration-300 ${activeTab === 'announcements' ? 'bg-white shadow-md text-pink-600' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+              {t.tabAnnouncements}
+          </button>
+          <button 
             onClick={() => setActiveTab('settings')}
             className={`flex-1 min-w-[100px] py-3 rounded-xl font-bold text-sm transition-all duration-300 ${activeTab === 'settings' ? 'bg-white shadow-md text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
           >
@@ -690,6 +724,44 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                       </div>
                   )}
               </div>
+          </div>
+      ) : activeTab === 'announcements' ? (
+          <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+               <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200">
+                  <h3 className="text-lg font-bold text-slate-900 mb-4">{t.postAnnouncement}</h3>
+                  
+                  {/* Target Audience Selector */}
+                  <div className="mb-4">
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{t.targetAudience}</label>
+                      <select 
+                        value={targetSectionId}
+                        onChange={(e) => setTargetSectionId(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-pink-500"
+                      >
+                          <option value="all">{t.allParents}</option>
+                          {sections.map(s => (
+                              <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
+                      </select>
+                  </div>
+
+                  <textarea 
+                    value={announcementText}
+                    onChange={(e) => setAnnouncementText(e.target.value)}
+                    placeholder={t.typeAnnouncement}
+                    className="w-full h-32 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none mb-4"
+                  />
+                  <button 
+                    onClick={handlePostAnnouncement}
+                    disabled={!announcementText.trim()}
+                    className="w-full py-3 bg-pink-600 text-white rounded-xl font-bold hover:bg-pink-700 transition-colors shadow-lg shadow-pink-200 disabled:opacity-50"
+                  >
+                      {t.chatSend}
+                  </button>
+               </div>
+               <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm text-blue-800">
+                   ℹ️ {lang === 'az' ? 'Burada yazılan mesajlar dərhal bütün valideynlərin telefonunda görünəcək.' : (lang === 'ru' ? 'Сообщения, написанные здесь, мгновенно появятся у всех родителей.' : 'Messages posted here will instantly appear for all parents.')}
+               </div>
           </div>
       ) : (
         <>

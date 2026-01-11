@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { TRANSLATIONS } from '../translations';
 import { supabase } from '../supabase';
-import { PLATFORM_BOT_LINK } from '../constants';
-import ChatWidget from './ChatWidget';
+import { PLATFORM_BOT_LINK } from '../constants'; 
+import { BeforeInstallPromptEvent } from '../types';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -19,21 +19,44 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
   // Secret Trigger Logic
   const [logoTapCount, setLogoTapCount] = useState(0);
 
-  // QR Modal State
+  // Modals
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  
+  // PWA Install State
+  const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
     // Check if we are using the real Supabase client
-    // @ts-ignore - checking internal property to verify if it's the real client
+    // @ts-ignore
     const isReal = !!supabase.auth && !supabase.hasOwnProperty('getDb');
     setIsDbReal(isReal);
+
+    // Listen for PWA install prompt
+    const handler = (e: BeforeInstallPromptEvent) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+      console.log('PWA Install Prompt captured');
+    };
+
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
+
+  const handleInstallClick = () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    installPrompt.userChoice.then((choiceResult) => {
+      if (choiceResult.outcome === 'accepted') {
+        console.log('User accepted the install prompt');
+        setInstallPrompt(null);
+      }
+    });
+  };
 
   const handleLogoTap = () => {
       const newCount = logoTapCount + 1;
       setLogoTapCount(newCount);
 
-      // If 5 taps happen
       if (newCount >= 5) {
           if (onSecretTrigger) {
               onSecretTrigger();
@@ -44,7 +67,6 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
           setLogoTapCount(0);
       }
 
-      // Reset count if user stops tapping for 1 second
       setTimeout(() => {
           setLogoTapCount(0);
       }, 1000);
@@ -111,15 +133,27 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
             </span>
           </div>
           
-          <div className="flex items-center space-x-2 md:space-x-4">
+          <div className="flex items-center space-x-2 md:space-x-3">
+            {/* Install App Button (Visible only if installPrompt exists) */}
+            {installPrompt && (
+              <button 
+                onClick={handleInstallClick}
+                className="bg-indigo-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-lg shadow-indigo-200 animate-pulse flex items-center gap-1"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                <span className="hidden sm:inline">Install</span>
+              </button>
+            )}
+
             {/* QR Button */}
             <button 
                 onClick={() => setIsQrModalOpen(true)}
                 className="bg-slate-100 hover:bg-slate-200 text-slate-600 p-2 rounded-xl transition-colors"
-                title="App QR Code"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zM6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zM6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
             </button>
 
@@ -150,9 +184,6 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
       <main className="max-w-7xl mx-auto px-4 py-6 md:py-8">
         {children}
       </main>
-      
-      {/* CHAT WIDGET */}
-      <ChatWidget lang={lang} />
       
       {!isTg && (
         <div className="fixed bottom-2 right-2 flex items-center space-x-1.5 bg-white/50 backdrop-blur px-2 py-1 rounded-full text-[8px] font-bold text-slate-400 border border-slate-100 z-50">

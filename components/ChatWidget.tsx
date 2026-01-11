@@ -1,335 +1,191 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { TRANSLATIONS } from '../translations';
+import { supabase } from '../supabase';
+import { Court, Announcement, Section } from '../types';
 
-interface ChatWidgetProps {
+interface NewsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
   lang: 'az' | 'ru' | 'en';
+  courts: Court[]; 
 }
 
-interface Message {
-  id: number;
-  text: string;
-  sender: 'user' | 'bot';
-  timestamp: Date;
-  type: 'text' | 'audio';
-  audioUrl?: string;
-  duration?: number;
-}
-
-const ChatWidget: React.FC<ChatWidgetProps> = ({ lang }) => {
-  const t = TRANSLATIONS[lang];
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [inputValue, setInputValue] = useState('');
-  const [unreadCount, setUnreadCount] = useState(1); // Start with 1 unread (Welcome msg)
-  
-  // Audio Recording State
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
-  
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  
-  // Media Recorder Refs
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const recordingIntervalRef = useRef<number | null>(null);
-  
-  // Persist stream to avoid repeated permissions
-  const streamRef = useRef<MediaStream | null>(null);
-  const startTimeRef = useRef<number>(0);
-
-  // Initialize with welcome message only
-  useEffect(() => {
-    if (messages.length === 0) {
-      setMessages([
-        {
-          id: 1,
-          text: t.chatWelcome,
-          sender: 'bot',
-          timestamp: new Date(),
-          type: 'text'
+// Helper to get all sections from local storage across all courts
+const getAllSections = (courts: Court[]): Section[] => {
+    let all: Section[] = [];
+    courts.forEach(c => {
+        const stored = localStorage.getItem(`court_sections_${c.id}`);
+        if (stored) {
+            const sections = JSON.parse(stored);
+            all = [...all, ...sections];
         }
-      ]);
-    }
-  }, [lang, t.chatWelcome]);
+    });
+    return all;
+};
 
-  // Handle Open/Close state
+const NewsModal: React.FC<NewsModalProps> = ({ isOpen, onClose, lang, courts }) => {
+  const t = TRANSLATIONS[lang];
+  const [messages, setMessages] = useState<Announcement[]>([]);
+  const [mySectionId, setMySectionId] = useState<string | null>(localStorage.getItem('user_section_id'));
+  const [availableSections, setAvailableSections] = useState<Section[]>([]);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+      setAvailableSections(getAllSections(courts));
+  }, [courts, isOpen]);
+
+  const fetchAnnouncements = async () => {
+      // Fetch public (null) OR specific section messages
+      const { data } = await supabase.from('announcements').select('*').order('created_at', { ascending: true });
+      if (data) {
+          // Client side filtering for Mock DB limitations or simplicity
+          const filtered = data.filter((msg: Announcement) => 
+              !msg.section_id || (mySectionId && msg.section_id === mySectionId)
+          );
+          setMessages(filtered);
+      }
+  };
+
   useEffect(() => {
     if (isOpen) {
-        setUnreadCount(0);
-    } else {
-        // Chat closed (minimized)
-        
-        // 1. If recording was in progress, stop the RECORDER logic, but KEEP the STREAM.
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-            mediaRecorderRef.current.stop();
-        }
-        setIsRecording(false);
-        setRecordingTime(0);
-        if (recordingIntervalRef.current) {
-            clearInterval(recordingIntervalRef.current);
-            recordingIntervalRef.current = null;
-        }
-
-        // NOTE: We intentionally DO NOT stop streamRef.current here anymore.
-        // This keeps the permission "alive" so opening the chat again doesn't ask for permission.
+        fetchAnnouncements();
     }
-  }, [isOpen]);
+  }, [isOpen, mySectionId]);
 
-  // Cleanup on component unmount (when App is fully closed)
+  // Subscribe to updates
   useEffect(() => {
-      return () => {
-          if (streamRef.current) {
-              streamRef.current.getTracks().forEach(track => track.stop());
-          }
-          if (recordingIntervalRef.current) {
-              clearInterval(recordingIntervalRef.current);
-          }
-      };
-  }, []);
+    if (!isOpen) return;
+    const channel = supabase
+      .channel('public:announcements')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements' }, (payload) => {
+         const newMsg = payload.new as Announcement;
+         // Only add if relevant to me
+         if (!newMsg.section_id || (mySectionId && newMsg.section_id === mySectionId)) {
+             setMessages(prev => [...prev, newMsg]);
+             if (window.Telegram?.WebApp) {
+                 window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+             }
+         }
+      })
+      .subscribe();
 
-  // Auto-scroll to bottom
+    return () => { supabase.removeChannel(channel); };
+  }, [isOpen, mySectionId]);
+
+  const handleSectionSelect = (id: string) => {
+      setMySectionId(id);
+      localStorage.setItem('user_section_id', id);
+  };
+
+  const handleResetSection = () => {
+      setMySectionId(null);
+      localStorage.removeItem('user_section_id');
+      setMessages([]);
+  }
+
+  // Auto-scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isOpen]);
 
-  const handleSend = () => {
-    if (!inputValue.trim()) return;
-
-    const newUserMsg: Message = {
-      id: Date.now(),
-      text: inputValue,
-      sender: 'user',
-      timestamp: new Date(),
-      type: 'text'
-    };
-
-    setMessages(prev => [...prev, newUserMsg]);
-    setInputValue('');
-  };
-
-  const startRecording = async () => {
+  const formatTime = (isoString: string) => {
       try {
-          let stream = streamRef.current;
-
-          // Reuse existing stream if active to prevent permission prompt
-          if (!stream || !stream.active || stream.getTracks().some(t => t.readyState === 'ended')) {
-              stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-              streamRef.current = stream;
-          }
-
-          const mediaRecorder = new MediaRecorder(stream);
-          mediaRecorderRef.current = mediaRecorder;
-          audioChunksRef.current = [];
-
-          mediaRecorder.ondataavailable = (event) => {
-              if (event.data.size > 0) {
-                  audioChunksRef.current.push(event.data);
-              }
-          };
-
-          mediaRecorder.onstop = () => {
-              const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-              const audioUrl = URL.createObjectURL(audioBlob);
-              
-              // Calculate duration based on elapsed time
-              const duration = Math.round((Date.now() - startTimeRef.current) / 1000);
-
-              // Send Audio Message
-              const newAudioMsg: Message = {
-                  id: Date.now(),
-                  text: t.voiceMessage || 'Voice Message',
-                  sender: 'user',
-                  timestamp: new Date(),
-                  type: 'audio',
-                  audioUrl: audioUrl,
-                  duration: duration > 0 ? duration : 1
-              };
-              
-              setMessages(prev => [...prev, newAudioMsg]);
-          };
-
-          mediaRecorder.start();
-          startTimeRef.current = Date.now();
-          setIsRecording(true);
-          setRecordingTime(0);
-
-          recordingIntervalRef.current = window.setInterval(() => {
-              setRecordingTime(prev => prev + 1);
-          }, 1000);
-
-      } catch (err) {
-          console.error("Error accessing microphone:", err);
-          alert(lang === 'az' ? 'Mikrofona icazə yoxdur' : (lang === 'ru' ? 'Нет доступа к микрофону' : 'Microphone access denied'));
-      }
+          const d = new Date(isoString);
+          return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+      } catch (e) { return ''; }
   };
 
-  const stopRecording = () => {
-      if (mediaRecorderRef.current && isRecording) {
-          mediaRecorderRef.current.stop();
-          // Stream remains active for next time
-          
-          if (recordingIntervalRef.current) {
-              clearInterval(recordingIntervalRef.current);
-          }
-          setIsRecording(false);
-      }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSend();
-    }
-  };
-
-  const formatTime = (seconds: number) => {
-      const mins = Math.floor(seconds / 60);
-      const secs = seconds % 60;
-      return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-  };
+  if (!isOpen) return null;
 
   return (
-    <div className="fixed bottom-6 right-4 z-[60] flex flex-col items-end pointer-events-none">
-      {/* Chat Window - Enable pointer events only for window */}
-      {isOpen && (
-        <div className="mb-4 w-[85vw] max-w-sm bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden flex flex-col h-[400px] animate-in slide-in-from-bottom-10 fade-in duration-300 pointer-events-auto">
-          
-          {/* Header */}
-          <div className="bg-slate-900 p-4 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                  A
-                </div>
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-slate-900"></div>
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 pointer-events-auto">
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}></div>
+      
+      <div className="bg-slate-100 w-full sm:max-w-md h-[80vh] sm:h-[600px] sm:rounded-[2rem] rounded-t-[2rem] shadow-2xl flex flex-col overflow-hidden relative z-10 animate-in slide-in-from-bottom-10 duration-300">
+        
+        {/* Header */}
+        <div className="bg-white p-4 flex items-center justify-between shrink-0 border-b border-slate-200">
+          <div className="flex items-center gap-3">
+             <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
               </div>
               <div>
-                <h3 className="text-white font-bold text-sm">{t.chatTitle}</h3>
-                <span className="text-slate-400 text-xs flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span> {t.online}
-                </span>
-              </div>
-            </div>
-            <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white p-2">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Messages Area */}
-          <div className="flex-1 bg-slate-50 p-4 overflow-y-auto space-y-4">
-            {messages.map((msg) => (
-              <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div 
-                  className={`max-w-[80%] px-4 py-2 rounded-2xl text-sm ${
-                    msg.sender === 'user' 
-                      ? 'bg-indigo-600 text-white rounded-tr-sm' 
-                      : 'bg-white text-slate-700 shadow-sm border border-slate-100 rounded-tl-sm'
-                  }`}
-                >
-                  {msg.type === 'audio' && msg.audioUrl ? (
-                      <div className="flex items-center gap-2 min-w-[120px]">
-                          <button 
-                            className="bg-white/20 p-2 rounded-full hover:bg-white/30 transition-colors"
-                            onClick={() => {
-                                const audio = new Audio(msg.audioUrl);
-                                audio.play();
-                            }}
-                          >
-                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                             </svg>
-                          </button>
-                          <div className="flex flex-col">
-                              <span className="text-xs font-bold opacity-90">{t.voiceMessage}</span>
-                              <span className="text-[10px] opacity-70">{formatTime(msg.duration || 0)}</span>
-                          </div>
-                      </div>
-                  ) : (
-                      msg.text
-                  )}
-                  <div className={`text-[10px] mt-1 text-right ${msg.sender === 'user' ? 'text-indigo-200' : 'text-slate-400'}`}>
-                    {msg.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                  </div>
-                </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Input Area */}
-          <div className="p-3 bg-white border-t border-slate-100 shrink-0">
-             {isRecording ? (
-                 <div className="flex items-center justify-between bg-red-50 rounded-xl px-4 py-2 border border-red-100">
-                     <div className="flex items-center gap-2">
-                         <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                         <span className="text-red-600 font-bold text-sm">{t.recording} {formatTime(recordingTime)}</span>
-                     </div>
-                     <button 
-                        onClick={stopRecording}
-                        className="bg-red-500 text-white p-2 rounded-full hover:bg-red-600 shadow-md shadow-red-200 transition-all transform active:scale-95"
-                     >
-                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clipRule="evenodd" />
-                         </svg>
-                     </button>
-                 </div>
-             ) : (
-                <div className="flex items-center gap-2 bg-slate-50 rounded-xl px-2 py-1 border border-slate-200 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-100 transition-all">
-                <input 
-                    type="text" 
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder={t.chatPlaceholder}
-                    className="flex-1 bg-transparent px-2 py-2 text-sm focus:outline-none text-slate-900 placeholder:text-slate-400"
-                />
-                
-                {inputValue.trim() ? (
-                    <button 
-                        onClick={handleSend}
-                        className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z" />
-                        </svg>
-                    </button>
-                ) : (
-                    <button 
-                        onClick={startRecording}
-                        className="p-2 text-slate-400 hover:text-red-500 transition-colors"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clipRule="evenodd" />
-                        </svg>
+                <h3 className="text-slate-900 font-bold text-lg">{t.chatTitle}</h3>
+                {mySectionId && (
+                    <button onClick={handleResetSection} className="text-xs text-indigo-600 font-bold underline">
+                        {availableSections.find(s => s.id === mySectionId)?.name || t.changeTeam}
                     </button>
                 )}
-                </div>
-             )}
+              </div>
           </div>
+          <button onClick={onClose} className="bg-slate-100 p-2 rounded-full text-slate-500 hover:bg-slate-200 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
-      )}
 
-      {/* Floating Button - Enable pointer events */}
-      {!isOpen && (
-        <button 
-          onClick={() => setIsOpen(true)}
-          className="w-14 h-14 bg-indigo-600 text-white rounded-full shadow-xl shadow-indigo-600/30 flex items-center justify-center hover:bg-indigo-700 hover:scale-110 transition-all duration-300 group relative pointer-events-auto"
-        >
-           <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-           </svg>
-           
-           {/* Notification Badge */}
-           {unreadCount > 0 && (
-             <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 bg-red-500 text-white text-[10px] font-bold rounded-full border-2 border-slate-50 flex items-center justify-center animate-in zoom-in duration-300">
-               {unreadCount}
-             </span>
-           )}
-        </button>
-      )}
+        {/* Content */}
+        {!mySectionId ? (
+            <div className="flex-1 p-6 flex flex-col items-center justify-center text-center">
+                <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mb-6">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                </div>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">{t.selectYourTeam}</h3>
+                <p className="text-slate-500 mb-8">{t.selectTeamDesc}</p>
+                
+                <div className="w-full space-y-3 overflow-y-auto max-h-[300px] px-2">
+                    {availableSections.length > 0 ? availableSections.map(s => (
+                        <button 
+                            key={s.id} 
+                            onClick={() => handleSectionSelect(s.id)}
+                            className="w-full bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:border-indigo-500 hover:shadow-md transition-all font-bold text-slate-700 flex justify-between items-center"
+                        >
+                            <span>{s.name}</span>
+                            <span className="text-slate-300">›</span>
+                        </button>
+                    )) : (
+                        <div className="text-slate-400 text-sm">No sections active.</div>
+                    )}
+                </div>
+            </div>
+        ) : (
+            <div className="flex-1 bg-slate-50 p-4 overflow-y-auto space-y-4">
+                 {messages.length > 0 ? messages.map((msg, idx) => (
+                     <div key={msg.id || idx} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                        <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-50">
+                            <span className="text-xs font-black text-indigo-600 uppercase tracking-wide">
+                                {msg.sender_name}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                                {formatTime(msg.created_at)}
+                            </span>
+                        </div>
+                        <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">
+                            {msg.message}
+                        </p>
+                     </div>
+                 )) : (
+                     <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4">
+                         <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">
+                             <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                             </svg>
+                         </div>
+                         <p>{t.noAnnouncements}</p>
+                     </div>
+                 )}
+                 <div ref={messagesEndRef} />
+            </div>
+        )}
+      </div>
     </div>
   );
 };
 
-export default ChatWidget;
+export default NewsModal;
