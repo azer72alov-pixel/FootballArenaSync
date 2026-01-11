@@ -3,16 +3,14 @@ import Layout from './components/Layout';
 import CourtCard from './components/CourtCard';
 import Calendar from './components/Calendar';
 import TimeGrid from './components/TimeGrid';
-import SubscriptionPanel from './components/SubscriptionPanel';
 import AdminDashboard from './components/AdminDashboard';
 import SuperAdminDashboard from './components/SuperAdminDashboard';
-import { COURTS, NOTIFICATION_CONFIG, SUPER_ADMIN_PIN } from './constants';
+import { COURTS, NOTIFICATION_CONFIG, SUPER_ADMIN_PIN, SUBSCRIPTIONS } from './constants';
 import { Court, Subscription } from './types';
 import { TRANSLATIONS } from './translations';
 import { supabase } from './supabase';
 
 // Helper to format date in LOCAL time (YYYY-MM-DD)
-// Prevents timezone shifts (e.g. 00:00 local becoming 20:00 previous day UTC)
 export const formatDateLocal = (date: Date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -24,12 +22,21 @@ const App: React.FC = () => {
   const tg = window.Telegram?.WebApp;
   const [lang, setLang] = useState<'az' | 'ru' | 'en'>('az');
   
-  const [view, setView] = useState<'home' | 'search' | 'booking' | 'subscription' | 'admin_login' | 'admin_dashboard' | 'super_admin_login' | 'super_admin_dashboard'>('home');
+  // Dynamic Courts State (Initialized from Constants, updated from LocalStorage)
+  const [courts, setCourts] = useState<Court[]>(COURTS);
+
+  // Views
+  const [view, setView] = useState<'home' | 'search' | 'booking' | 'admin_login' | 'admin_dashboard' | 'super_admin_login' | 'super_admin_dashboard'>('home');
   const [bookingStep, setBookingStep] = useState<'date' | 'time'>('date');
   
+  // Selection State
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCourt, setSelectedCourt] = useState<Court | null>(null);
+  
+  // Booking Logic State
+  const [bookingType, setBookingType] = useState<'hourly' | 'subscription'>('hourly');
   const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
+  
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [selectedHour, setSelectedHour] = useState<number | null>(null);
   
@@ -47,8 +54,21 @@ const App: React.FC = () => {
   // Super Admin State
   const [suspendedCourts, setSuspendedCourts] = useState<string[]>([]);
   
-  // Состояние для всплывающих уведомлений (Alerts)
   const [toast, setToast] = useState<{message: string, type: 'success' | 'error' | 'info'} | null>(null);
+
+  // Initialize Courts from LocalStorage (for persistent prices)
+  useEffect(() => {
+      const updatedCourts = COURTS.map(c => {
+          const savedHourlyPrice = localStorage.getItem(`court_price_${c.id}`);
+          const savedSubPrice = localStorage.getItem(`court_sub_price_${c.id}`);
+          return { 
+              ...c, 
+              pricePerHour: savedHourlyPrice ? parseFloat(savedHourlyPrice) : c.pricePerHour,
+              subscriptionPrice: savedSubPrice ? parseFloat(savedSubPrice) : c.subscriptionPrice
+          };
+      });
+      setCourts(updatedCourts);
+  }, []);
 
   useEffect(() => {
     if (tg) {
@@ -61,26 +81,23 @@ const App: React.FC = () => {
       }
     }
     
-    // Load suspended state from local storage (Simulating DB for platform settings)
     const storedSuspended = localStorage.getItem('arena_suspended_courts');
     if (storedSuspended) {
         setSuspendedCourts(JSON.parse(storedSuspended));
     }
 
-    // --- DEEP LINKING HANDLER ---
-    // Check for ?court=ID in URL to open specific booking page immediately
+    // --- DEEP LINKING ---
     const params = new URLSearchParams(window.location.search);
     const courtIdParam = params.get('court');
     if (courtIdParam) {
-        const targetCourt = COURTS.find(c => c.id === courtIdParam);
+        const targetCourt = courts.find(c => c.id === courtIdParam);
         if (targetCourt) {
             setSelectedCourt(targetCourt);
             setView('booking');
-            // Optional: Clean URL
             window.history.replaceState({}, '', window.location.pathname);
         }
     }
-  }, []);
+  }, [courts]);
 
   const t = TRANSLATIONS[lang];
 
@@ -90,9 +107,19 @@ const App: React.FC = () => {
       setTimeout(() => setToast(null), 3500);
   };
 
+  const handleUpdateCourtSettings = (courtId: string, settings: { pricePerHour?: number, subscriptionPrice?: number }) => {
+      setCourts(prev => prev.map(c => {
+          if (c.id === courtId) {
+              return { ...c, ...settings };
+          }
+          return c;
+      }));
+      if (settings.pricePerHour) localStorage.setItem(`court_price_${courtId}`, settings.pricePerHour.toString());
+      if (settings.subscriptionPrice) localStorage.setItem(`court_sub_price_${courtId}`, settings.subscriptionPrice.toString());
+  };
+
   const fetchBookings = useCallback(async () => {
         if (!selectedCourt) return;
-        // FIX: Use local date string instead of toISOString()
         const dateStr = formatDateLocal(selectedDate);
         
         const { data } = await supabase.from('bookings').select('hour, type').eq('court_id', selectedCourt.id).eq('date', dateStr);
@@ -117,12 +144,11 @@ const App: React.FC = () => {
     fetchOccupiedDates();
   }, [fetchBookings, fetchOccupiedDates, bookingSuccess]);
 
-  // REALTIME - ПОЛУЧЕНИЕ ОБНОВЛЕНИЙ В ЖИВОМ ЭФИРЕ
+  // REALTIME
   useEffect(() => {
     const channel = supabase
       .channel('public:bookings')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, (payload) => {
-        // Если кто-то другой забронировал, пока мы смотрим - уведомляем
         if (view === 'booking' && payload.eventType === 'INSERT') {
             const msg = lang === 'az' ? '⚠️ Yeni rezervasiya edildi!' : (lang === 'ru' ? '⚠️ Кто-то забронировал время!' : '⚠️ Slot just taken!');
             showToast(msg, 'info');
@@ -134,19 +160,12 @@ const App: React.FC = () => {
     return () => { supabase.removeChannel(channel); };
   }, [fetchBookings, fetchOccupiedDates, view, lang]);
 
-  // --- OFFLINE NOTIFICATION FUNCTION (INDIVIDUAL OWNERS) ---
   const sendTelegramNotification = async (bookingDetails: any) => {
       const { BOT_TOKEN } = NOTIFICATION_CONFIG;
-      
-      // Determine the specific chat ID for this court's owner
-      const targetCourt = COURTS.find(c => c.id === bookingDetails.court_id);
+      const targetCourt = courts.find(c => c.id === bookingDetails.court_id);
       const ownerChatId = targetCourt?.telegramChatId;
 
-      // Skip if no bot token or no owner ID is set for this venue
-      if (!BOT_TOKEN || !ownerChatId) {
-          console.warn(`Notification skipped. Token: ${!!BOT_TOKEN}, OwnerID: ${!!ownerChatId}`);
-          return;
-      }
+      if (!BOT_TOKEN || !ownerChatId) return;
 
       const text = `
 🔔 <b>YENİ REZERVASİYA!</b>
@@ -165,11 +184,7 @@ const App: React.FC = () => {
           await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                  chat_id: ownerChatId, // Sending to the specific owner
-                  text: text,
-                  parse_mode: 'HTML'
-              })
+              body: JSON.stringify({ chat_id: ownerChatId, text: text, parse_mode: 'HTML' })
           });
       } catch (error) {
           console.error("Failed to send Telegram notification:", error);
@@ -181,17 +196,15 @@ const App: React.FC = () => {
     setIsBooking(true);
     if (tg) tg.MainButton.showProgress(false);
 
-    const isSub = view === 'subscription';
-    const amount = Math.round(isSub && selectedSubscription ? selectedSubscription.price : selectedCourt.pricePerHour);
+    const isSub = bookingType === 'subscription';
+    // Use dynamic subscription price if set on court
+    const amount = Math.round(isSub ? selectedCourt.subscriptionPrice : selectedCourt.pricePerHour);
     
-    // Подготовка массива для вставки (одна запись или несколько для абонемента)
     const rowsToInsert = [];
     const dateStr = formatDateLocal(selectedDate);
 
     if (isSub && selectedSubscription) {
-        // Логика абонемента: создаем записи на N недель вперед
         const iterations = selectedSubscription.hours; 
-
         for (let i = 0; i < iterations; i++) {
             const nextDate = new Date(selectedDate);
             nextDate.setDate(selectedDate.getDate() + (i * 7)); 
@@ -208,7 +221,6 @@ const App: React.FC = () => {
             });
         }
     } else {
-        // Обычное разовое бронирование
         rowsToInsert.push({
             court_id: selectedCourt.id,
             date: dateStr,
@@ -241,10 +253,7 @@ const App: React.FC = () => {
             return;
         }
 
-        // --- SEND TELEGRAM NOTIFICATION (OFFLINE SUPPORT) ---
-        // Send alert only for the primary booking (first one) to avoid spamming 4 messages for subscription
         await sendTelegramNotification(rowsToInsert[0]);
-
         setIsBooking(false);
         setBookingSuccess(true);
         if (tg) {
@@ -262,13 +271,24 @@ const App: React.FC = () => {
     if (bookingSuccess) {
         setBookingSuccess(false); setView('home'); setBookingStep('date');
         setSelectedCourt(null); setSelectedHour(null);
+        setSelectedSubscription(null); 
+        setBookingType('hourly');
         return;
     }
-    if ((view === 'booking' || view === 'subscription') && bookingStep === 'time') {
+    // If in subscription mode and on Calendar/Time step, go back to plan selection if we want strict flow,
+    // OR just go back to Home. For simplicity, Back inside booking simply exits booking.
+    if (bookingStep === 'time') {
       setBookingStep('date'); return;
     }
-    setView('home'); setSelectedCourt(null); setBookingStep('date'); setAdminPin('');
-  }, [view, bookingStep, bookingSuccess]);
+    if (bookingType === 'subscription' && selectedSubscription) {
+         // If a plan is selected, allow going back to re-select plan? 
+         // For now, let's just go back to home to keep it simple or unselect subscription
+         // Better UX: 
+         // setSelectedSubscription(null); 
+         // return;
+    }
+    setView('home'); setSelectedCourt(null); setSelectedSubscription(null); setBookingStep('date'); setAdminPin(''); setBookingType('hourly');
+  }, [bookingStep, bookingSuccess, bookingType, selectedSubscription]);
 
   useEffect(() => {
     if (!tg) return;
@@ -277,20 +297,15 @@ const App: React.FC = () => {
     return () => { tg.BackButton.offClick(handleBack); };
   }, [view, handleBack, tg, bookingSuccess]);
 
-  const showStickyButton = (view === 'booking' || view === 'subscription') && selectedCourt && selectedHour !== null && !bookingSuccess;
+  const showStickyButton = view === 'booking' && selectedCourt && selectedHour !== null && !bookingSuccess;
 
-  // Функция входа в админку ПАРТНЕРОВ
   const handlePartnerLogin = () => {
-    // SECURITY: This function only checks for Venue PINs. 
-    // It does NOT accept the Super Admin PIN.
     if (adminPin === SUPER_ADMIN_PIN) {
-        showToast(t.invalidPin, 'error'); // Disguise Master Key as invalid here
+        showToast(t.invalidPin, 'error');
         setAdminPin('');
         return;
     }
-
-    const court = COURTS.find(c => (localStorage.getItem(`court_pin_${c.id}`) || c.pin) === adminPin);
-
+    const court = courts.find(c => (localStorage.getItem(`court_pin_${c.id}`) || c.pin) === adminPin);
     if (court) {
         if (suspendedCourts.includes(court.id)) {
             showToast("Account Suspended. Contact Platform Owner.", 'error');
@@ -305,7 +320,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Функция входа ВЛАДЕЛЬЦА (Secret)
   const handleSuperAdminLogin = () => {
       if (adminPin === SUPER_ADMIN_PIN) { 
           setAdminPin('');
@@ -320,27 +334,33 @@ const App: React.FC = () => {
     const newSuspended = suspendedCourts.includes(courtId)
         ? suspendedCourts.filter(id => id !== courtId)
         : [...suspendedCourts, courtId];
-    
     setSuspendedCourts(newSuspended);
     localStorage.setItem('arena_suspended_courts', JSON.stringify(newSuspended));
-    showToast(`Status updated for ${COURTS.find(c => c.id === courtId)?.name}`, 'success');
+    showToast(`Status updated for ${courts.find(c => c.id === courtId)?.name}`, 'success');
   };
 
-  // Secret Gesture Handler
   const handleSecretTrigger = () => {
-      // Switches the view to the secret login screen
       setView('super_admin_login');
       setAdminPin('');
   };
 
-  // Filter courts for public view
   const visibleCourts = useMemo(() => {
-      return COURTS.filter(c => !suspendedCourts.includes(c.id));
-  }, [suspendedCourts]);
+      return courts.filter(c => !suspendedCourts.includes(c.id));
+  }, [courts, suspendedCourts]);
+
+  const getFutureDatesPreview = () => {
+      if (!selectedSubscription || bookingType !== 'subscription') return [];
+      const dates = [];
+      for(let i=0; i < selectedSubscription.hours; i++) {
+           const d = new Date(selectedDate);
+           d.setDate(selectedDate.getDate() + (i * 7));
+           dates.push(d.toLocaleDateString(lang === 'az' ? 'az-AZ' : (lang === 'ru' ? 'ru-RU' : 'en-US'), {day: 'numeric', month: 'short'}));
+      }
+      return dates;
+  }
 
   return (
     <Layout lang={lang} onLangChange={setLang} onSecretTrigger={handleSecretTrigger}>
-      {/* УВЕДОМЛЕНИЯ */}
       {toast && (
           <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-2xl flex items-center animate-in slide-in-from-top-10 fade-in duration-300 ${
               toast.type === 'error' ? 'bg-red-500 text-white' : toast.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-slate-900 text-white'
@@ -350,20 +370,25 @@ const App: React.FC = () => {
       )}
 
       {view === 'admin_dashboard' && managedCourtId && (
-        <AdminDashboard lang={lang} managedCourtId={managedCourtId} allCourts={COURTS} onBack={handleBack} />
+        <AdminDashboard 
+            lang={lang} 
+            managedCourtId={managedCourtId} 
+            allCourts={courts} 
+            onBack={handleBack} 
+            onUpdateSettings={handleUpdateCourtSettings}
+        />
       )}
 
       {view === 'super_admin_dashboard' && (
         <SuperAdminDashboard 
             lang={lang} 
-            allCourts={COURTS} 
+            allCourts={courts} 
             suspendedCourts={suspendedCourts}
             onToggleSuspend={handleToggleSuspend}
             onBack={handleBack} 
         />
       )}
 
-      {/* PUBLIC PARTNER LOGIN - Clean, no owner hints */}
       {view === 'admin_login' && (
         <div className="flex flex-col items-center justify-center min-h-[60vh] animate-in fade-in slide-in-from-bottom-4">
             <div className="bg-white p-8 rounded-[2rem] shadow-xl w-full max-w-sm text-center border border-slate-100">
@@ -374,11 +399,9 @@ const App: React.FC = () => {
                 </div>
                 <h2 className="text-2xl font-bold text-slate-900 mb-2">{t.partnerAccess}</h2>
                 <p className="text-slate-400 text-sm mb-6">{t.enterPin}</p>
-                
                 <input type="password" value={adminPin} onChange={(e) => setAdminPin(e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-center text-2xl tracking-widest font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-6"
                     placeholder="••••••" maxLength={6} />
-                
                 <button onClick={handlePartnerLogin} className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-indigo-600 transition-colors">
                     {lang === 'az' ? 'Daxil ol' : (lang === 'ru' ? 'Войти' : 'Login')}
                 </button>
@@ -386,23 +409,16 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* SECRET SUPER ADMIN LOGIN - Only visible via gesture */}
       {view === 'super_admin_login' && (
         <div className="flex flex-col items-center justify-center min-h-[60vh] animate-in fade-in">
             <div className="bg-slate-900 p-8 rounded-[2rem] shadow-2xl w-full max-w-sm text-center border border-slate-800 relative overflow-hidden">
-                {/* Visual effect for secret mode */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500 rounded-full blur-3xl opacity-20 -mr-10 -mt-10"></div>
-                
                 <h2 className="text-2xl font-black text-white mb-2 relative z-10">SYSTEM OVERRIDE</h2>
                 <p className="text-slate-400 text-sm mb-6 relative z-10">Enter Master Key</p>
-                
                 <input type="password" value={adminPin} onChange={(e) => setAdminPin(e.target.value)}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-center text-2xl tracking-widest font-bold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-6 relative z-10"
                     placeholder="••••••" maxLength={6} autoFocus />
-                
-                <button onClick={handleSuperAdminLogin} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-indigo-500 transition-colors relative z-10">
-                    ACCESS
-                </button>
+                <button onClick={handleSuperAdminLogin} className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-indigo-500 transition-colors relative z-10">ACCESS</button>
             </div>
         </div>
       )}
@@ -429,7 +445,18 @@ const App: React.FC = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
              {visibleCourts.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase())).length > 0 ? (
                 visibleCourts.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase())).map(court => (
-                    <CourtCard key={court.id} court={court} isSelected={false} onSelect={(c) => { setSelectedCourt(c); setView('booking'); }} lang={lang} />
+                    <CourtCard 
+                        key={court.id} 
+                        court={court} 
+                        isSelected={false} 
+                        onSelect={(c) => { 
+                            setSelectedCourt(c); 
+                            setView('booking'); 
+                            setBookingType('hourly');
+                            setSelectedSubscription(null);
+                        }} 
+                        lang={lang} 
+                    />
                 ))
              ) : (
                 <div className="col-span-3 text-center py-12 text-slate-400">
@@ -437,8 +464,6 @@ const App: React.FC = () => {
                 </div>
              )}
           </div>
-          
-          <SubscriptionPanel onSubscribe={(s) => { setSelectedSubscription(s); setView('subscription'); if(!selectedCourt && visibleCourts.length > 0) setSelectedCourt(visibleCourts[0]); }} lang={lang} />
           
           <button onClick={() => { setView('admin_login'); setAdminPin(''); }} className="w-full py-4 text-slate-400 text-sm font-bold opacity-50 flex items-center justify-center gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -449,7 +474,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {(view === 'booking' || view === 'subscription') && selectedCourt && (
+      {view === 'booking' && selectedCourt && (
         <div className="animate-in fade-in slide-in-from-right-8 duration-500 pb-32">
             {bookingSuccess ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
@@ -461,24 +486,120 @@ const App: React.FC = () => {
                 </div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                    <div className="lg:col-span-5">
-                        {bookingStep === 'date' ? <Calendar selectedDate={selectedDate} onDateChange={(d) => { setSelectedDate(d); setBookingStep('time'); }} lang={lang} bookedDates={bookedDates} /> : (
-                            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200">
-                                <img src={selectedCourt.image} className="rounded-xl mb-4" />
-                                <button onClick={() => setBookingStep('date')} className="w-full py-3 border rounded-xl font-bold">Изменить дату</button>
-                            </div>
-                        )}
+                    {/* LEFT COLUMN: Info & Controls */}
+                    <div className="lg:col-span-5 space-y-6">
+                        {/* Court Header Card */}
+                        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200">
+                             <div className="flex items-start justify-between mb-4">
+                                <h2 className="text-2xl font-black text-slate-900 leading-tight pr-4">{selectedCourt.name}</h2>
+                             </div>
+                             
+                             {/* Booking Type Toggle */}
+                             <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
+                                 <button 
+                                    onClick={() => { setBookingType('hourly'); setSelectedSubscription(null); }}
+                                    className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${bookingType === 'hourly' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
+                                 >
+                                     {t.modeHourly}
+                                 </button>
+                                 <button 
+                                    onClick={() => setBookingType('subscription')}
+                                    className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${bookingType === 'subscription' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500'}`}
+                                 >
+                                     {t.modeSubscription}
+                                 </button>
+                             </div>
+
+                             {/* Subscription Plan Selection UI */}
+                             {bookingType === 'subscription' && !selectedSubscription && (
+                                 <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                                     <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">{t.chooseYourPlan}</h3>
+                                     {SUBSCRIPTIONS.map(sub => (
+                                         <div 
+                                            key={sub.id}
+                                            onClick={() => setSelectedSubscription(sub)}
+                                            className="border border-purple-100 bg-purple-50/50 rounded-2xl p-4 cursor-pointer hover:border-purple-300 hover:shadow-md transition-all active:scale-95"
+                                         >
+                                             <div className="flex justify-between items-center mb-2">
+                                                 <span className="font-bold text-slate-900">{sub.name}</span>
+                                                 {/* Use dynamic court subscription price here */}
+                                                 <span className="bg-purple-600 text-white text-xs font-bold px-2 py-1 rounded-lg">{selectedCourt.subscriptionPrice}₼</span>
+                                             </div>
+                                             <div className="text-xs text-slate-500">
+                                                 <p className="mb-1"><strong>{t.planIncludes}</strong> {sub.hours} {t.gamesCount}</p>
+                                                 <p className="line-clamp-1">{sub.features[0]}</p>
+                                             </div>
+                                         </div>
+                                     ))}
+                                 </div>
+                             )}
+
+                             {/* Selected Plan Info */}
+                             {bookingType === 'subscription' && selectedSubscription && (
+                                 <div className="bg-purple-600 text-white p-4 rounded-xl mb-4 flex justify-between items-center animate-in fade-in">
+                                     <div>
+                                         <div className="text-xs opacity-75 uppercase font-bold">{t.subscription}</div>
+                                         <div className="font-bold text-lg">{selectedSubscription.name}</div>
+                                     </div>
+                                     <button 
+                                        onClick={() => setSelectedSubscription(null)}
+                                        className="bg-white/20 hover:bg-white/30 p-2 rounded-lg transition-colors text-xs font-bold"
+                                     >
+                                         {t.changePlan}
+                                     </button>
+                                 </div>
+                             )}
+
+                             {/* Show Calendar if Hourly OR (Subscription AND Plan Selected) */}
+                             {(bookingType === 'hourly' || (bookingType === 'subscription' && selectedSubscription)) && (
+                                <div className="mt-4">
+                                     {bookingStep === 'time' ? (
+                                        <button onClick={() => setBookingStep('date')} className="w-full py-3 border border-slate-200 bg-slate-50 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-colors">
+                                            {t.changeDate}
+                                        </button>
+                                     ) : (
+                                        <Calendar selectedDate={selectedDate} onDateChange={(d) => { setSelectedDate(d); setBookingStep('time'); }} lang={lang} bookedDates={bookedDates} />
+                                     )}
+                                </div>
+                             )}
+                        </div>
                     </div>
+
+                    {/* RIGHT COLUMN: Time Grid */}
                     <div className="lg:col-span-7">
-                        {bookingStep === 'time' && <TimeGrid selectedHour={selectedHour} onHourSelect={setSelectedHour} lang={lang} reservedHours={reservedHours} dayBookings={dayBookings} />}
+                        {(bookingType === 'hourly' || (bookingType === 'subscription' && selectedSubscription)) && bookingStep === 'time' && (
+                             <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
+                                {bookingType === 'subscription' && (
+                                    <div className="bg-purple-50 p-4 rounded-2xl border border-purple-100 text-sm">
+                                        <span className="text-purple-800 font-bold block mb-2">{t.futureDates}</span>
+                                        <div className="flex flex-wrap gap-2">
+                                            {getFutureDatesPreview().map((d, i) => (
+                                                <span key={i} className="bg-white px-2 py-1 rounded-lg border border-purple-100 text-purple-600 font-medium text-xs shadow-sm">
+                                                    {d}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                <TimeGrid selectedHour={selectedHour} onHourSelect={setSelectedHour} lang={lang} reservedHours={reservedHours} dayBookings={dayBookings} />
+                             </div>
+                        )}
                     </div>
                 </div>
             )}
+
+            {/* Sticky Action Button */}
             {showStickyButton && (
                 <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-md z-50">
-                    <button onClick={handleBook} disabled={isBooking} className="w-full bg-indigo-600 text-white py-4 rounded-2xl shadow-2xl font-bold text-lg flex justify-between px-8">
+                    <button 
+                        onClick={handleBook} 
+                        disabled={isBooking || (bookingType === 'subscription' && !selectedSubscription)} 
+                        className={`w-full py-4 rounded-2xl shadow-2xl font-bold text-lg flex justify-between px-8 transition-all active:scale-95 ${
+                            bookingType === 'subscription' ? 'bg-purple-600 text-white shadow-purple-200' : 'bg-indigo-600 text-white shadow-indigo-200'
+                        }`}
+                    >
                         <span>{t.bookNow}</span>
-                        <span>{isBooking ? '...' : (view === 'subscription' ? selectedSubscription?.price : selectedCourt.pricePerHour) + ' ₼'}</span>
+                        <span>{isBooking ? '...' : (bookingType === 'subscription' ? selectedCourt.subscriptionPrice : selectedCourt.pricePerHour) + ' ₼'}</span>
                     </button>
                 </div>
             )}

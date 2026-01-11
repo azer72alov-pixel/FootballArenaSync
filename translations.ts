@@ -27,7 +27,7 @@ export const TRANSLATIONS = {
     becomeMember: "Sabit Komanda Ol",
     memberDesc: "Hər həftə eyni gün və saatda meydança sizin olsun. Zəng etmədən, növbə gözləmədən.",
     totalIncludedTime: "Paketə daxildir:",
-    getStarted: "Paketi Seç",
+    getStarted: "Seç",
     successTitle: "Uğurlu rezervasiya!",
     successDesc: "Rezervasiya məlumatları telefonunuza göndərildi. Meydançada görüşənədək!",
     backToDashboard: "Ana səhifəyə qayıt",
@@ -100,6 +100,15 @@ export const TRANSLATIONS = {
     scanToOpenApp: "Bu QR-i skan edərək tətbiqi başladın",
     close: "Bağla",
     copyLink: "Linki Kopyala",
+    changeDate: "Tarixi dəyiş",
+    changePlan: "Paketi dəyiş",
+    selectCourtToSubscribe: "Abunəlik üçün meydança seçin",
+    subscriptionModeActive: "Abunəlik rejimi aktivdir",
+    cancelSubscriptionMode: "Rejimi ləğv et",
+    modeHourly: "Bir oyun",
+    modeSubscription: "Abunə paketi",
+    chooseYourPlan: "Paketinizi seçin",
+    planIncludes: "Daxildir:",
     // Super Admin Specific
     ownerMode: "Sahib Rejimi",
     platformOverview: "Platforma İcmalı",
@@ -111,7 +120,14 @@ export const TRANSLATIONS = {
     suspended: "Dayandırılıb",
     active: "Aktiv",
     activatePartner: "Aktivləşdir",
-    suspendAccess: "Dayandır"
+    suspendAccess: "Dayandır",
+    // Price Management
+    priceSettings: "Qiymət Tənzimləmələri",
+    pricePerHourLabel: "Saatlıq qiymət (AZN)",
+    updatePrice: "Qiyməti yenilə",
+    priceUpdated: "Qiymət uğurla yeniləndi!",
+    priceUpdateError: "Xəta: Qiymət düzgün deyil.",
+    subscriptionPriceLabel: "Abunəlik qiyməti (Paket)"
   },
   ru: {
     findCourts: "Площадки",
@@ -140,7 +156,7 @@ export const TRANSLATIONS = {
     becomeMember: "Стать постоянной командой",
     memberDesc: "Ваше поле в один и тот же день и час каждую неделю. Без звонков и ожиданий.",
     totalIncludedTime: "В пакете:",
-    getStarted: "Выбрать слот",
+    getStarted: "Выбрать",
     successTitle: "Успешное бронирование!",
     successDesc: "Данные бронирования отправлены на ваш телефон. До встречи на поле!",
     backToDashboard: "На главную",
@@ -213,6 +229,15 @@ export const TRANSLATIONS = {
     scanToOpenApp: "Сканируйте QR, чтобы запустить приложение",
     close: "Закрыть",
     copyLink: "Копировать ссылку",
+    changeDate: "Изменить дату",
+    changePlan: "Сменить план",
+    selectCourtToSubscribe: "Выберите площадку для абонемента",
+    subscriptionModeActive: "Режим абонемента активен",
+    cancelSubscriptionMode: "Отменить режим",
+    modeHourly: "Разовая игра",
+    modeSubscription: "Абонемент",
+    chooseYourPlan: "Выберите тариф",
+    planIncludes: "Входит:",
     // Super Admin Specific
     ownerMode: "Режим Владельца",
     platformOverview: "Обзор Платформы",
@@ -224,7 +249,14 @@ export const TRANSLATIONS = {
     suspended: "Приостановлен",
     active: "Активен",
     activatePartner: "Активировать",
-    suspendAccess: "Приостановить"
+    suspendAccess: "Приостановить",
+    // Price Management
+    priceSettings: "Настройка Цен",
+    pricePerHourLabel: "Цена за час (AZN)",
+    updatePrice: "Обновить цену",
+    priceUpdated: "Цена успешно обновлена!",
+    priceUpdateError: "Ошибка: Некорректная цена.",
+    subscriptionPriceLabel: "Цена Абонемента (Пакет)"
   },
   en: {
     findCourts: "Courts",
@@ -253,7 +285,7 @@ export const TRANSLATIONS = {
     becomeMember: "Become a Regular Team",
     memberDesc: "Your pitch at the same day and time every week. No calls, no waiting.",
     totalIncludedTime: "Included in package:",
-    getStarted: "Select Plan",
+    getStarted: "Select",
     successTitle: "Booking Successful!",
     successDesc: "Booking details have been sent to your phone. See you on the pitch!",
     backToDashboard: "Back to Home",
@@ -326,6 +358,15 @@ export const TRANSLATIONS = {
     scanToOpenApp: "Scan this QR to launch the app",
     close: "Close",
     copyLink: "Copy Link",
+    changeDate: "Change Date",
+    changePlan: "Change Plan",
+    selectCourtToSubscribe: "Select a court to subscribe",
+    subscriptionModeActive: "Subscription mode active",
+    cancelSubscriptionMode: "Cancel Mode",
+    modeHourly: "One-time Match",
+    modeSubscription: "Team Package",
+    chooseYourPlan: "Choose Your Plan",
+    planIncludes: "Includes:",
     // Super Admin Specific
     ownerMode: "Owner Mode",
     platformOverview: "Platform Overview",
@@ -337,6 +378,13 @@ export const TRANSLATIONS = {
     suspended: "Suspended",
     active: "Active",
     activatePartner: "Activate Partner",
-    suspendAccess: "Suspend Access"
+    suspendAccess: "Suspend Access",
+    // Price Management
+    priceSettings: "Price Settings",
+    pricePerHourLabel: "Price Per Hour (AZN)",
+    updatePrice: "Update Price",
+    priceUpdated: "Price updated successfully!",
+    priceUpdateError: "Error: Invalid price.",
+    subscriptionPriceLabel: "Subscription Price (Package)"
   }
 };

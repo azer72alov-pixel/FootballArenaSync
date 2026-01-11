@@ -21,7 +21,7 @@ export const PLATFORM_BOT_LINK = 'https://t.me/ArenaSyncBot/app';
 // =================================================================
 export const NOTIFICATION_CONFIG = {
     // Вставьте сюда токен вашего существующего бота
-    BOT_TOKEN: '8517079073:AAFI9EUqorSj0v0NLcWAEZ8375i5OgfauDk' 
+    BOT_TOKEN: '' 
 };
 
 export const COURTS: Court[] = [
@@ -30,6 +30,7 @@ export const COURTS: Court[] = [
     name: 'Sumqayıt Paralimpiya Kompleksi',
     type: 'Football',
     pricePerHour: 30,
+    subscriptionPrice: 100, // Default Sub Price
     image: 'https://lh3.googleusercontent.com/gps-cs-s/AG0ilSxomvgXE1NoYDab2YJRCf6x4IVVUCcZsXWqqqQOdFGgS9r_JbPMy37k5obf9pmPPWqELvdpDasU7LyDChDJ7ciwzBda22IM0tSx0J_TFfmkHu8IK2YR_bBovoaD3aicl3wC31Xd=s715-w715-h572-n-k-no', 
     gallery: [
       'https://lh3.googleusercontent.com/gps-cs-s/AG0ilSxomvgXE1NoYDab2YJRCf6x4IVVUCcZsXWqqqQOdFGgS9r_JbPMy37k5obf9pmPPWqELvdpDasU7LyDChDJ7ciwzBda22IM0tSx0J_TFfmkHu8IK2YR_bBovoaD3aicl3wC31Xd=s715-w715-h572-n-k-no',
@@ -49,6 +50,7 @@ export const COURTS: Court[] = [
     name: 'Sumqayıt Olimpiya İdman Kompleksi',
     type: 'Football',
     pricePerHour: 30,
+    subscriptionPrice: 100, // Default Sub Price
     image: 'https://azertag.az/files/galleryphoto/2022/1/1200x630/16500978061016219673_1200x630.jpg', 
     gallery: [
       'https://azertag.az/files/galleryphoto/2022/1/1200x630/16500978061016219673_1200x630.jpg',
@@ -68,6 +70,7 @@ export const COURTS: Court[] = [
     name: 'Azfar Futbol Meydançası (Bulvar)',
     type: 'Football',
     pricePerHour: 30,
+    subscriptionPrice: 100, // Default Sub Price
     image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSWM8XQIHLG_aGaIUnOnh8PB-uP63yKtAtDje3VidaI4w&s=10',
     gallery: [
       'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSWM8XQIHLG_aGaIUnOnh8PB-uP63yKtAtDje3VidaI4w&s=10',
@@ -101,4 +104,5 @@ export const SUBSCRIPTIONS: Subscription[] = [
   }
 ];
 
-export const BUSINESS_HOURS = Array.from({ length: 16 }, (_, i) => i + 7); // 7:00 to 22:00
+// 17:00 to 23:00 (Evening slots only due to sport sections in morning/afternoon)
+export const BUSINESS_HOURS = Array.from({ length: 7 }, (_, i) => i + 17);

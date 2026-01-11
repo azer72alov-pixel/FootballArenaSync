@@ -5,14 +5,15 @@ export interface Court {
   name: string;
   type: CourtType;
   pricePerHour: number;
+  subscriptionPrice: number; // Custom price for subscriptions per court
   image: string;
-  gallery: string[]; // Added gallery support
+  gallery: string[]; 
   description: string;
   address: string;
   mapUrl: string;
-  pin: string; // Unique PIN for admin access
-  status?: 'active' | 'suspended'; // New field for platform control
-  telegramChatId?: string; // ID администратора этой конкретной площадки
+  pin: string; 
+  status?: 'active' | 'suspended'; 
+  telegramChatId?: string; 
 }
 
 export interface Booking {
@@ -30,7 +31,7 @@ export interface Booking {
 export interface Subscription {
   id: string;
   name: string;
-  price: number;
+  price: number; // Base price (fallback)
   hours: number;
   features: string[];
   color: string;
