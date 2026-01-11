@@ -396,8 +396,17 @@ const App: React.FC = () => {
       return dates;
   }
 
+  // Calculate if we can go back
+  const canGoBack = view !== 'home' || bookingSuccess;
+
   return (
-    <Layout lang={lang} onLangChange={setLang} onSecretTrigger={handleSecretTrigger}>
+    <Layout 
+        lang={lang} 
+        onLangChange={setLang} 
+        onSecretTrigger={handleSecretTrigger}
+        canGoBack={canGoBack}
+        onBack={handleBack}
+    >
       {toast && (
           <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-full shadow-2xl flex items-center animate-in slide-in-from-top-10 fade-in duration-300 ${
               toast.type === 'error' ? 'bg-red-500 text-white' : toast.type === 'success' ? 'bg-emerald-500 text-white' : 'bg-slate-900 text-white'
