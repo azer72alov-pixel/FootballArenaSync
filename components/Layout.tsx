@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { TRANSLATIONS } from '../translations';
 import { supabase } from '../supabase';
 import { PLATFORM_BOT_LINK } from '../constants';
+import ChatWidget from './ChatWidget';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -149,6 +150,9 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
       <main className="max-w-7xl mx-auto px-4 py-6 md:py-8">
         {children}
       </main>
+      
+      {/* CHAT WIDGET */}
+      <ChatWidget lang={lang} />
       
       {!isTg && (
         <div className="fixed bottom-2 right-2 flex items-center space-x-1.5 bg-white/50 backdrop-blur px-2 py-1 rounded-full text-[8px] font-bold text-slate-400 border border-slate-100 z-50">

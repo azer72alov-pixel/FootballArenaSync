@@ -48,6 +48,14 @@ const TimeGrid: React.FC<TimeGridProps> = ({ selectedHour, onHourSelect, lang, r
                   
                   // Determine reservation type for coloring
                   const isSubscription = detailBooking?.type === 'subscription';
+                  const isSection = detailBooking?.type === 'section';
+                  
+                  // Determine Time of Day (Morning/Afternoon vs Evening)
+                  const isDaytime = hour < 17;
+                  
+                  // DISABLE LOGIC:
+                  // Block if reserved OR if it is Daytime (09:00 - 17:00) per request
+                  const isDisabled = isReserved || isDaytime;
 
                   // 24-hour format label (e.g., 17:00)
                   const label = `${hour.toString().padStart(2, '0')}:00`;
@@ -57,25 +65,37 @@ const TimeGrid: React.FC<TimeGridProps> = ({ selectedHour, onHourSelect, lang, r
                   
                   // State Logic
                   if (isSelected) {
+                      // SELECTED STATE
                       btnClass += "bg-indigo-600 text-white border-indigo-600 shadow-lg scale-105 z-10";
                   } else if (isReserved) {
+                      // RESERVED STATES
                       if (isSubscription) {
                           // PURPLE for SUBSCRIPTIONS
                           btnClass += "bg-purple-100 text-purple-600 border-purple-200 cursor-not-allowed opacity-90";
+                      } else if (isSection) {
+                          // DARK ORANGE for SECTIONS (Booked)
+                          btnClass += "bg-orange-200 text-orange-700 border-orange-300 cursor-not-allowed opacity-90";
                       } else {
                           // RED for ONE-TIME / HOURLY
                           btnClass += "bg-red-100 text-red-500 border-red-200 cursor-not-allowed opacity-90";
                       }
                   } else {
-                      // GREEN (Available)
-                      btnClass += "bg-emerald-50 text-emerald-700 border-emerald-200 hover:border-emerald-400 hover:bg-emerald-100 hover:shadow-md";
+                      // AVAILABLE STATES
+                      if (isDaytime) {
+                          // ORANGE for Morning/Afternoon
+                          // Cursor default and opacity-80 to show it's "info only" and not clickable
+                          btnClass += "bg-orange-50 text-orange-600 border-orange-200 cursor-default opacity-80";
+                      } else {
+                          // GREEN for Evening (Available & Clickable)
+                          btnClass += "bg-emerald-50 text-emerald-700 border-emerald-200 hover:border-emerald-400 hover:bg-emerald-100 hover:shadow-md";
+                      }
                   }
 
                   return (
                     <button
                       key={hour}
                       onClick={() => onHourSelect(hour)}
-                      disabled={isReserved}
+                      disabled={isDisabled}
                       className={btnClass}
                     >
                       <span className="text-sm font-bold leading-none">{label}</span>
@@ -91,6 +111,10 @@ const TimeGrid: React.FC<TimeGridProps> = ({ selectedHour, onHourSelect, lang, r
                       {isReserved && isSubscription && (
                           <div className="absolute top-1 right-1 w-2 h-2 bg-purple-500 rounded-full" title="Subscription"></div>
                       )}
+
+                      {isReserved && isSection && (
+                          <div className="absolute top-1 right-1 w-2 h-2 bg-orange-600 rounded-full" title="Section"></div>
+                      )}
                     </button>
                   );
                 })}
@@ -100,7 +124,7 @@ const TimeGrid: React.FC<TimeGridProps> = ({ selectedHour, onHourSelect, lang, r
         ))}
       </div>
       
-      <div className="mt-6 pt-4 border-t border-slate-100 flex gap-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider justify-center">
+      <div className="mt-6 pt-4 border-t border-slate-100 flex flex-wrap gap-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider justify-center">
           <div className="flex items-center">
               <div className="w-2 h-2 bg-red-400 rounded-full mr-1.5"></div>
               {t.oneTime}
@@ -110,8 +134,16 @@ const TimeGrid: React.FC<TimeGridProps> = ({ selectedHour, onHourSelect, lang, r
               {t.subscription}
           </div>
           <div className="flex items-center">
+              <div className="w-2 h-2 bg-orange-600 rounded-full mr-1.5"></div>
+              {t.sectionLegend || "Section"}
+          </div>
+          <div className="flex items-center">
               <div className="w-2 h-2 bg-emerald-500 rounded-full mr-1.5"></div>
-              Free
+              Free (Eve)
+          </div>
+          <div className="flex items-center">
+              <div className="w-2 h-2 bg-orange-300 rounded-full mr-1.5"></div>
+              Info (Day)
           </div>
       </div>
     </div>

@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { TRANSLATIONS } from '../translations';
 import { SUBSCRIPTIONS } from '../constants';
-import { Court } from '../types';
+import { Court, Section } from '../types';
 import Calendar from './Calendar';
 import TimeGrid from './TimeGrid';
 import { supabase } from '../supabase';
-import { formatDateLocal } from '../App'; // Import the new helper
+import { formatDateLocal } from '../App'; 
 
 interface AdminDashboardProps {
   lang: 'az' | 'ru' | 'en';
@@ -19,8 +19,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
   const t = TRANSLATIONS[lang];
   const court = allCourts.find(c => c.id === managedCourtId);
 
-  // Tab State
-  const [activeTab, setActiveTab] = useState<'hourly' | 'subscription' | 'settings'>('hourly');
+  // Tab State: Added 'sections'
+  const [activeTab, setActiveTab] = useState<'hourly' | 'subscription' | 'settings' | 'sections'>('hourly');
 
   // Calendar State
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -39,6 +39,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
   const [subPriceInput, setSubPriceInput] = useState<string>(court?.subscriptionPrice.toString() || '100');
   const [saveMessage, setSaveMessage] = useState({ text: '', type: '' });
 
+  // Section Management State
+  const [sections, setSections] = useState<Section[]>([]);
+  const [newSectionName, setNewSectionName] = useState('');
+  const [newSectionDays, setNewSectionDays] = useState<number[]>([]);
+  const [newSectionStart, setNewSectionStart] = useState(16);
+  const [newSectionDuration, setNewSectionDuration] = useState(2);
+
   // Sound & Notification State
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [notification, setNotification] = useState<{message: string, visible: boolean} | null>(null);
@@ -51,11 +58,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
   // Store bookings from DB
   const [localBookings, setLocalBookings] = useState<any[]>([]);
 
-  // Initialize Audio
+  // Initialize Audio & Sections
   useEffect(() => {
-    // Standard notification sound
     audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-  }, []);
+    
+    // Load sections from local storage
+    if (managedCourtId) {
+        const stored = localStorage.getItem(`court_sections_${managedCourtId}`);
+        if (stored) setSections(JSON.parse(stored));
+    }
+  }, [managedCourtId]);
 
   // Update local price inputs if prop changes
   useEffect(() => {
@@ -76,7 +88,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
   // Show visual toast
   const showNotification = (msg: string) => {
       setNotification({ message: msg, visible: true });
-      // Clear after 5 seconds
       setTimeout(() => {
           setNotification(prev => prev && prev.message === msg ? { ...prev, visible: false } : prev);
       }, 5000);
@@ -108,35 +119,23 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
 
   useEffect(() => {
     fetchAllBookings();
-    
-    // Subscribe to realtime changes for this court
     const channel = supabase
       .channel('admin:bookings')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, (payload) => {
-        
-        // CHECK IF IT'S A NEW INSERT FOR THIS COURT
         if (payload.eventType === 'INSERT' && payload.new.court_id === managedCourtId) {
              const hour = payload.new.hour;
              const date = payload.new.date;
-             
-             // Play sound
              playNotification();
-             
-             // Show alert
              showNotification(`${t.newBookingAlert} ${date} @ ${hour}:00`);
-             
-             // Telegram Haptic
              if (window.Telegram?.WebApp) {
                  window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
              }
         }
-
         fetchAllBookings();
       })
       .subscribe();
-
     return () => { supabase.removeChannel(channel); }
-  }, [managedCourtId, soundEnabled]); // Add soundEnabled to dependencies so the closure uses fresh state
+  }, [managedCourtId, soundEnabled]); 
 
   // 1. Calculate which dates have ANY bookings (for Calendar dots)
   const bookedDatesSet = useMemo(() => {
@@ -145,21 +144,40 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
     return dates;
   }, [localBookings]);
 
-  // 2. Calculate bookings for the CURRENTLY selected date (for TimeGrid colors)
+  // 2. Calculate bookings + sections for the CURRENTLY selected date (for TimeGrid)
   const dayBookings = useMemo(() => {
-    // FIX: Use local format to match DB strings correctly
+    // A. Real DB Bookings
     const dateKey = formatDateLocal(selectedDate);
-    return localBookings.filter(b => b.dateStr === dateKey);
-  }, [selectedDate, localBookings]);
+    const dbBookings = localBookings.filter(b => b.dateStr === dateKey);
+
+    // B. Virtual Section Bookings
+    const dayOfWeek = selectedDate.getDay();
+    const activeSections = sections.filter(s => s.days.includes(dayOfWeek));
+    const sectionBookings: any[] = [];
+    
+    activeSections.forEach(s => {
+        for(let i=0; i<s.duration; i++) {
+            const h = s.startHour + i;
+            sectionBookings.push({
+                hour: h,
+                type: 'section',
+                // Mock data to match structure
+                id: `sec_${s.id}_${h}`,
+                customer: s.name,
+                status: 'occupied'
+            });
+        }
+    });
+
+    return [...dbBookings, ...sectionBookings];
+  }, [selectedDate, localBookings, sections]);
 
   // 3. Filter bookings for the Bottom Table based on Active Tab
   const tableBookings = useMemo(() => {
-      // If we are in Settings tab, tableBookings isn't used, but prevents error
-      if (activeTab === 'settings') return [];
+      if (activeTab === 'settings' || activeTab === 'sections') return [];
       return localBookings.filter(b => b.type === activeTab);
   }, [localBookings, activeTab]);
 
-  // Focus input when modal opens
   useEffect(() => {
     if (isModalOpen && inputRef.current) {
         setTimeout(() => inputRef.current?.focus(), 100);
@@ -167,35 +185,24 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
   }, [isModalOpen]);
 
   const handleApprove = async (id: number) => {
-    const { error } = await supabase
-        .from('bookings')
-        .update({ status: 'paid' })
-        .eq('id', id);
-    // State updates via realtime subscription or manual refetch automatically, but optimistic update is nice
+    const { error } = await supabase.from('bookings').update({ status: 'paid' }).eq('id', id);
     if (!error) {
         setLocalBookings(prev => prev.map(b => b.id === id ? { ...b, status: 'paid' } : b));
     }
   };
 
   const handleReject = async (id: number) => {
-    const { error } = await supabase
-        .from('bookings')
-        .delete()
-        .eq('id', id);
-
+    const { error } = await supabase.from('bookings').delete().eq('id', id);
     if (!error) {
         setLocalBookings(prev => prev.filter(b => b.id !== id));
     }
   };
 
   const handleHourToggle = (hour: number) => {
-      // Check if hour is already taken in the current day view
       const isTaken = dayBookings.some(b => b.hour === hour);
-
       if (!isTaken) {
           setSelectedHour(hour); 
           setCustomerNameInput('');
-          // Automatically set the booking type based on the active tab
           setBookingType(activeTab === 'subscription' ? 'subscription' : 'hourly'); 
           if (SUBSCRIPTIONS.length > 0) setSelectedPlanId(SUBSCRIPTIONS[0].id);
           setIsModalOpen(true);
@@ -207,38 +214,31 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
         const basePrice = court?.pricePerHour || 30;
         const subPrice = court?.subscriptionPrice || 100;
         const newRows = [];
+        const dateStr = formatDateLocal(selectedDate);
 
         if (bookingType === 'hourly') {
-            // SINGLE BOOKING
-            // FIX: Use local format
-            const dateStr = formatDateLocal(selectedDate);
             newRows.push({
                 court_id: managedCourtId,
                 date: dateStr,
                 hour: selectedHour,
                 customer_name: customerNameInput,
-                status: 'paid', // Admin bookings are auto-paid
+                status: 'paid',
                 type: 'hourly',
                 amount: basePrice
             });
         } else {
-            // SUBSCRIPTION BOOKING
             const plan = SUBSCRIPTIONS.find(s => s.id === selectedPlanId);
             const iterations = plan ? plan.hours : 4; 
-            
-            // Use court specific sub price as base, unless we had plan logic overriding it
-            // For now, assume the court sub price applies to the default plan
             const planPrice = subPrice; 
 
             for (let i = 0; i < iterations; i++) {
                 const nextDate = new Date(selectedDate);
-                nextDate.setDate(selectedDate.getDate() + (i * 7)); // +7 days for each week
-                // FIX: Use local format for future dates too
-                const dateStr = formatDateLocal(nextDate);
+                nextDate.setDate(selectedDate.getDate() + (i * 7)); 
+                const dStr = formatDateLocal(nextDate);
                 
                 newRows.push({
                     court_id: managedCourtId,
-                    date: dateStr,
+                    date: dStr,
                     hour: selectedHour,
                     customer_name: `${customerNameInput} (${t.subscription} ${i+1}/${iterations})`,
                     status: 'paid',
@@ -248,28 +248,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
             }
         }
 
-        const { data, error } = await supabase.from('bookings').insert(newRows).select();
-
-        if (error) {
-            console.error(error);
-            alert("Error saving booking");
-            return;
-        }
-
-        // Realtime will handle update, but we can do optimistic update if needed
+        const { error } = await supabase.from('bookings').insert(newRows).select();
+        if (error) { alert("Error saving booking"); return; }
         closeModal();
     }
   };
 
-  const closeModal = () => {
-      setIsModalOpen(false);
-      setSelectedHour(null); 
-  };
+  const closeModal = () => { setIsModalOpen(false); setSelectedHour(null); };
   
   const handlePriceSave = () => {
       const p = parseFloat(priceInput);
       const s = parseFloat(subPriceInput);
-      
       if (!isNaN(p) && p > 0 && !isNaN(s) && s > 0) {
           onUpdateSettings(managedCourtId, { pricePerHour: p, subscriptionPrice: s });
           setSaveMessage({ text: t.priceUpdated, type: 'success' });
@@ -281,41 +270,47 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
 
   const handlePinChange = () => {
       if(!court) return;
-      
       const storedPin = localStorage.getItem(`court_pin_${court.id}`);
       const actualCurrentPin = storedPin || court.pin;
-
-      if (oldPin !== actualCurrentPin) {
-          setSaveMessage({ text: t.pinError, type: 'error' });
-          return;
-      }
-
-      if (newPin.length !== 6) {
-          setSaveMessage({ text: lang === 'az' ? 'PIN 6 rəqəm olmalıdır' : (lang === 'ru' ? 'PIN должен быть 6 цифр' : 'PIN must be 6 digits'), type: 'error' });
-          return;
-      }
-
-      // Check collision with other courts (Basic collision check against defaults)
-      const isTaken = allCourts.some(c => c.pin === newPin && c.id !== court.id);
-      if (isTaken) {
-          setSaveMessage({ 
-              text: lang === 'az' ? 'Bu PIN artıq istifadə olunur!' : (lang === 'ru' ? 'Этот PIN уже занят!' : 'PIN already in use!'), 
-              type: 'error' 
-          });
-          return;
-      }
-
+      if (oldPin !== actualCurrentPin) { setSaveMessage({ text: t.pinError, type: 'error' }); return; }
+      if (newPin.length !== 6) { setSaveMessage({ text: lang === 'az' ? 'PIN 6 rəqəm olmalıdır' : 'PIN must be 6 digits', type: 'error' }); return; }
+      if (allCourts.some(c => c.pin === newPin && c.id !== court.id)) { setSaveMessage({ text: t.pinError, type: 'error' }); return; }
       localStorage.setItem(`court_pin_${court.id}`, newPin);
       setSaveMessage({ text: t.pinUpdated, type: 'success' });
-      setOldPin('');
-      setNewPin('');
+      setOldPin(''); setNewPin('');
       setTimeout(() => setSaveMessage({ text: '', type: '' }), 3000);
   };
 
-  // Generate QR Code URL with deep link
+  // Section Management Handlers
+  const handleAddSection = () => {
+      if (!newSectionName || newSectionDays.length === 0) return;
+      const newSection: Section = {
+          id: Date.now().toString(),
+          name: newSectionName,
+          days: newSectionDays,
+          startHour: newSectionStart,
+          duration: newSectionDuration
+      };
+      const updated = [...sections, newSection];
+      setSections(updated);
+      localStorage.setItem(`court_sections_${managedCourtId}`, JSON.stringify(updated));
+      setNewSectionName('');
+      setNewSectionDays([]);
+      showNotification(t.sectionAdded);
+  };
+
+  const handleDeleteSection = (id: string) => {
+      const updated = sections.filter(s => s.id !== id);
+      setSections(updated);
+      localStorage.setItem(`court_sections_${managedCourtId}`, JSON.stringify(updated));
+  };
+
+  const toggleDay = (day: number) => {
+      setNewSectionDays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]);
+  };
+
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${window.location.origin}${window.location.pathname}?court=${managedCourtId}`)}&color=0f172a`;
 
-  // Calculate dynamic stats
   const revenue = localBookings.filter(b => b.status === 'paid').reduce((sum, b) => sum + b.amount, 0);
   const activeCount = localBookings.length;
   const occupancy = Math.round((activeCount / 10) * 100); 
@@ -517,6 +512,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
               {t.tabSubscriptions}
           </button>
           <button 
+            onClick={() => setActiveTab('sections')}
+            className={`flex-1 min-w-[100px] py-3 rounded-xl font-bold text-sm transition-all duration-300 ${activeTab === 'sections' ? 'bg-white shadow-md text-orange-600' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+              {t.tabSections}
+          </button>
+          <button 
             onClick={() => setActiveTab('settings')}
             className={`flex-1 min-w-[100px] py-3 rounded-xl font-bold text-sm transition-all duration-300 ${activeTab === 'settings' ? 'bg-white shadow-md text-slate-800' : 'text-slate-500 hover:text-slate-700'}`}
           >
@@ -537,7 +538,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                   </div>
 
                   <div className="space-y-6">
-                      {/* Price Management Section */}
                       <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                           <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                               {t.pricePerHourLabel}
@@ -548,10 +548,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                                 value={priceInput}
                                 onChange={(e) => setPriceInput(e.target.value)}
                                 className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                placeholder="30"
                             />
                           </div>
-
                           <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                               {t.subscriptionPriceLabel}
                           </label>
@@ -561,87 +559,136 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                                 value={subPriceInput}
                                 onChange={(e) => setSubPriceInput(e.target.value)}
                                 className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                placeholder="100"
                             />
                           </div>
-                          
-                          <button 
-                                onClick={handlePriceSave}
-                                className="w-full mt-4 bg-indigo-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200"
-                            >
+                          <button onClick={handlePriceSave} className="w-full mt-4 bg-indigo-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200">
                                 {t.saveChanges}
-                            </button>
+                          </button>
                       </div>
 
                       <div className="border-t border-slate-100 pt-6">
                           <h3 className="text-xl font-bold text-slate-900 text-center mb-4">{t.securitySettings}</h3>
                           <p className="text-slate-500 text-sm text-center mb-4">{t.changePin}</p>
                           <div>
-                              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                                  {t.currentPin}
-                              </label>
-                              <input 
-                                  type="password"
-                                  value={oldPin}
-                                  onChange={(e) => setOldPin(e.target.value)}
-                                  maxLength={6}
-                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-slate-400 text-center text-lg"
-                                  placeholder="••••••"
-                              />
+                              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{t.currentPin}</label>
+                              <input type="password" value={oldPin} onChange={(e) => setOldPin(e.target.value)} maxLength={6} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-slate-400 text-center text-lg" placeholder="••••••" />
                           </div>
                           <div className="mt-4">
-                              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                                  {t.newPin}
-                              </label>
-                              <input 
-                                  type="password"
-                                  value={newPin}
-                                  onChange={(e) => setNewPin(e.target.value)}
-                                  maxLength={6}
-                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-slate-400 text-center text-lg"
-                                  placeholder="••••••"
-                              />
-                              <p className="text-[10px] text-slate-400 mt-1 text-center">
-                                  {lang === 'az' ? 'Təhlükəsizlik üçün 6 rəqəmli kod daxil edin' : (lang === 'ru' ? 'Введите 6 цифр для безопасности' : 'Enter 6 digits for security')}
-                              </p>
+                              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{t.newPin}</label>
+                              <input type="password" value={newPin} onChange={(e) => setNewPin(e.target.value)} maxLength={6} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-slate-400 text-center text-lg" placeholder="••••••" />
                           </div>
-
-                          <button 
-                              onClick={handlePinChange}
-                              disabled={oldPin.length < 6 || newPin.length < 6}
-                              className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 mt-4 disabled:opacity-50"
-                          >
-                              {t.saveChanges}
-                          </button>
+                          <button onClick={handlePinChange} disabled={oldPin.length < 6 || newPin.length < 6} className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 mt-4 disabled:opacity-50">{t.saveChanges}</button>
                       </div>
-
-                      {saveMessage.text && (
-                          <div className={`p-3 rounded-xl text-sm font-bold text-center animate-in fade-in slide-in-from-bottom-2 ${saveMessage.type === 'error' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                              {saveMessage.text}
-                          </div>
-                      )}
-
-                      {/* --- QR CODE SECTION --- */}
+                      {saveMessage.text && <div className={`p-3 rounded-xl text-sm font-bold text-center animate-in fade-in slide-in-from-bottom-2 ${saveMessage.type === 'error' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>{saveMessage.text}</div>}
                       <div className="pt-8 mt-8 border-t border-slate-100">
                           <h3 className="text-lg font-bold text-slate-900 text-center mb-4">{t.venueQr}</h3>
                           <div className="bg-white p-4 rounded-2xl shadow-inner border border-slate-100 flex flex-col items-center">
-                              <img 
-                                src={qrCodeUrl} 
-                                alt="Venue QR Code" 
-                                className="w-48 h-48 mb-4 rounded-lg mix-blend-multiply" 
-                              />
-                              <p className="text-center text-xs text-slate-400 font-medium mb-4">
-                                  {t.scanToBook}
-                              </p>
-                              <button 
-                                onClick={() => window.open(qrCodeUrl, '_blank')}
-                                className="text-indigo-600 text-sm font-bold hover:underline"
-                              >
-                                  {t.printQr}
-                              </button>
+                              <img src={qrCodeUrl} alt="Venue QR Code" className="w-48 h-48 mb-4 rounded-lg mix-blend-multiply" />
+                              <button onClick={() => window.open(qrCodeUrl, '_blank')} className="text-indigo-600 text-sm font-bold hover:underline">{t.printQr}</button>
                           </div>
                       </div>
                   </div>
+              </div>
+          </div>
+      ) : activeTab === 'sections' ? (
+          <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+              {/* Add New Section Card */}
+              <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200">
+                  <h3 className="text-lg font-bold text-slate-900 mb-6">{t.createSection}</h3>
+                  <div className="space-y-4">
+                      <div>
+                          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{t.sectionName}</label>
+                          <input 
+                              type="text" 
+                              value={newSectionName}
+                              onChange={(e) => setNewSectionName(e.target.value)}
+                              placeholder="e.g. Junior Team U-12"
+                              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-orange-500"
+                          />
+                      </div>
+                      <div>
+                          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{t.selectDays}</label>
+                          <div className="flex gap-2 overflow-x-auto pb-1">
+                              {[1, 2, 3, 4, 5, 6, 0].map(day => (
+                                  <button
+                                    key={day}
+                                    onClick={() => toggleDay(day)}
+                                    className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all shrink-0 ${
+                                        newSectionDays.includes(day) ? 'bg-orange-500 text-white shadow-lg shadow-orange-200' : 'bg-slate-100 text-slate-400'
+                                    }`}
+                                  >
+                                      {t.weekDays[day as keyof typeof t.weekDays]}
+                                  </button>
+                              ))}
+                          </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                          <div>
+                              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{t.selectTime}</label>
+                              <select 
+                                value={newSectionStart} 
+                                onChange={(e) => setNewSectionStart(Number(e.target.value))}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold"
+                              >
+                                  {Array.from({length: 14}, (_, i) => i + 9).map(h => (
+                                      <option key={h} value={h}>{h}:00</option>
+                                  ))}
+                              </select>
+                          </div>
+                          <div>
+                              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{t.duration}</label>
+                              <select 
+                                value={newSectionDuration} 
+                                onChange={(e) => setNewSectionDuration(Number(e.target.value))}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold"
+                              >
+                                  <option value={1}>1 hr</option>
+                                  <option value={2}>2 hrs</option>
+                                  <option value={3}>3 hrs</option>
+                              </select>
+                          </div>
+                      </div>
+                      <button 
+                        onClick={handleAddSection}
+                        disabled={!newSectionName || newSectionDays.length === 0}
+                        className="w-full py-3 bg-orange-500 text-white rounded-xl font-bold hover:bg-orange-600 transition-colors shadow-lg shadow-orange-200 disabled:opacity-50"
+                      >
+                          {t.addSection}
+                      </button>
+                  </div>
+              </div>
+
+              {/* Sections List */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {sections.map(section => (
+                      <div key={section.id} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm relative overflow-hidden">
+                          <div className="absolute top-0 right-0 w-16 h-16 bg-orange-50 rounded-bl-full -mr-8 -mt-8"></div>
+                          <h4 className="font-bold text-slate-900 text-lg mb-2 relative z-10">{section.name}</h4>
+                          <div className="flex gap-1 mb-3 relative z-10">
+                              {section.days.map(d => (
+                                  <span key={d} className="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded">
+                                      {t.weekDays[d as keyof typeof t.weekDays]}
+                                  </span>
+                              ))}
+                          </div>
+                          <div className="flex justify-between items-center relative z-10">
+                              <span className="text-sm font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">
+                                  {section.startHour}:00 - {section.startHour + section.duration}:00
+                              </span>
+                              <button 
+                                onClick={() => handleDeleteSection(section.id)}
+                                className="text-slate-400 hover:text-red-500 text-xs font-bold"
+                              >
+                                  {t.deleteSection}
+                              </button>
+                          </div>
+                      </div>
+                  ))}
+                  {sections.length === 0 && (
+                      <div className="col-span-full text-center py-8 text-slate-400 text-sm">
+                          No sections created yet.
+                      </div>
+                  )}
               </div>
           </div>
       ) : (
@@ -682,7 +729,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                         selectedDate={selectedDate}
                         onDateChange={setSelectedDate}
                         lang={lang}
-                        bookedDates={bookedDatesSet} // Pass the Set of booked dates strings
+                        bookedDates={bookedDatesSet}
                     />
                     </div>
                     <div className="lg:col-span-7">
@@ -690,7 +737,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                         selectedHour={selectedHour}
                         onHourSelect={handleHourToggle}
                         lang={lang}
-                        // Pass detailed bookings for this day
                         dayBookings={dayBookings.map(b => ({ hour: b.hour, type: b.type || 'hourly' }))}
                     />
                     </div>
