@@ -9,9 +9,11 @@ interface LayoutProps {
   lang: 'az' | 'ru' | 'en';
   onLangChange: (lang: 'az' | 'ru' | 'en') => void;
   onSecretTrigger?: () => void;
+  canGoBack?: boolean;
+  onBack?: () => void;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretTrigger }) => {
+const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretTrigger, canGoBack, onBack }) => {
   const t = TRANSLATIONS[lang];
   const isTg = typeof window !== 'undefined' && !!window.Telegram?.WebApp?.initDataUnsafe;
   const [isDbReal, setIsDbReal] = useState(false);
@@ -122,15 +124,31 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
         }}
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center space-x-2 cursor-pointer select-none" onClick={handleLogoTap}>
-            <div className="bg-indigo-600 p-1.5 md:p-2 rounded-lg transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
+          <div className="flex items-center">
+            {canGoBack && (
+               <button 
+                  onClick={(e) => {
+                      e.stopPropagation();
+                      onBack?.();
+                  }}
+                  className="mr-2 md:mr-3 p-1.5 md:p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors shadow-sm"
+               >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                  </svg>
+               </button>
+            )}
+
+            <div className="flex items-center space-x-2 cursor-pointer select-none" onClick={handleLogoTap}>
+                <div className="bg-indigo-600 p-1.5 md:p-2 rounded-lg transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                </div>
+                <span className="text-lg md:text-xl font-bold tracking-tight text-slate-900">
+                ArenaSync
+                </span>
             </div>
-            <span className="text-lg md:text-xl font-bold tracking-tight text-slate-900">
-              ArenaSync
-            </span>
           </div>
           
           <div className="flex items-center space-x-2 md:space-x-3">
