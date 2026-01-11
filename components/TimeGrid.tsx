@@ -49,8 +49,8 @@ const TimeGrid: React.FC<TimeGridProps> = ({ selectedHour, onHourSelect, lang, r
                   // Determine reservation type for coloring
                   const isSubscription = detailBooking?.type === 'subscription';
 
-                  const label = `${hour % 12 || 12}:00`;
-                  const ampm = hour >= 12 ? 'PM' : 'AM';
+                  // 24-hour format label (e.g., 17:00)
+                  const label = `${hour.toString().padStart(2, '0')}:00`;
                   
                   // Base classes
                   let btnClass = "relative py-3 px-1 rounded-xl flex flex-col items-center justify-center transition-all duration-200 border-2 ";
@@ -79,7 +79,6 @@ const TimeGrid: React.FC<TimeGridProps> = ({ selectedHour, onHourSelect, lang, r
                       className={btnClass}
                     >
                       <span className="text-sm font-bold leading-none">{label}</span>
-                      <span className={`text-[10px] font-medium leading-none mt-1 ${isSelected ? 'text-indigo-200' : isReserved ? (isSubscription ? 'text-purple-400' : 'text-red-400') : 'text-emerald-500'}`}>{ampm}</span>
                       
                       {isSelected && (
                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-white rounded-full flex items-center justify-center">

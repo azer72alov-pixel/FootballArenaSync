@@ -65,9 +65,15 @@ const CourtCard: React.FC<CourtCardProps> = ({ court, isSelected, onSelect, lang
         </div>
 
         <div className="mt-auto flex items-center justify-between pt-4 border-t border-slate-50">
-          <div className="flex flex-col">
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t.perHour}</span>
-              <span className="text-xl font-black text-indigo-600">{court.pricePerHour}₼</span>
+          <div className="flex flex-col gap-0.5">
+              <div className="flex items-baseline gap-1">
+                  <span className="text-xl font-black text-indigo-600">{court.pricePerHour}₼</span>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t.perHour}</span>
+              </div>
+              <div className="flex items-baseline gap-1">
+                  <span className="text-sm font-bold text-purple-600">{court.subscriptionPrice}₼</span>
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t.perMonth}</span>
+              </div>
           </div>
           <button className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white'}`}>
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

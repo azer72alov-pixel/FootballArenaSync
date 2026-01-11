@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { TRANSLATIONS } from '../translations';
-import { COURTS, SUBSCRIPTIONS } from '../constants';
+import { SUBSCRIPTIONS } from '../constants';
 import { Court } from '../types';
 import Calendar from './Calendar';
 import TimeGrid from './TimeGrid';
@@ -12,9 +12,10 @@ interface AdminDashboardProps {
   managedCourtId: string;
   allCourts: Court[];
   onBack: () => void;
+  onUpdateSettings: (courtId: string, settings: { pricePerHour?: number, subscriptionPrice?: number }) => void;
 }
 
-const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, allCourts, onBack }) => {
+const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, allCourts, onBack, onUpdateSettings }) => {
   const t = TRANSLATIONS[lang];
   const court = allCourts.find(c => c.id === managedCourtId);
 
@@ -34,6 +35,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
   // Settings State
   const [oldPin, setOldPin] = useState('');
   const [newPin, setNewPin] = useState('');
+  const [priceInput, setPriceInput] = useState<string>(court?.pricePerHour.toString() || '30');
+  const [subPriceInput, setSubPriceInput] = useState<string>(court?.subscriptionPrice.toString() || '100');
   const [saveMessage, setSaveMessage] = useState({ text: '', type: '' });
 
   // Sound & Notification State
@@ -53,6 +56,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
     // Standard notification sound
     audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
   }, []);
+
+  // Update local price inputs if prop changes
+  useEffect(() => {
+      if (court) {
+          setPriceInput(court.pricePerHour.toString());
+          setSubPriceInput(court.subscriptionPrice.toString());
+      }
+  }, [court]);
 
   // Play sound function
   const playNotification = () => {
@@ -194,6 +205,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
   const handleModalConfirm = async () => {
     if (selectedHour !== null && customerNameInput.trim()) {
         const basePrice = court?.pricePerHour || 30;
+        const subPrice = court?.subscriptionPrice || 100;
         const newRows = [];
 
         if (bookingType === 'hourly') {
@@ -213,7 +225,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
             // SUBSCRIPTION BOOKING
             const plan = SUBSCRIPTIONS.find(s => s.id === selectedPlanId);
             const iterations = plan ? plan.hours : 4; 
-            const planPrice = plan ? plan.price : (basePrice * 4); 
+            
+            // Use court specific sub price as base, unless we had plan logic overriding it
+            // For now, assume the court sub price applies to the default plan
+            const planPrice = subPrice; 
 
             for (let i = 0; i < iterations; i++) {
                 const nextDate = new Date(selectedDate);
@@ -251,6 +266,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
       setSelectedHour(null); 
   };
   
+  const handlePriceSave = () => {
+      const p = parseFloat(priceInput);
+      const s = parseFloat(subPriceInput);
+      
+      if (!isNaN(p) && p > 0 && !isNaN(s) && s > 0) {
+          onUpdateSettings(managedCourtId, { pricePerHour: p, subscriptionPrice: s });
+          setSaveMessage({ text: t.priceUpdated, type: 'success' });
+          setTimeout(() => setSaveMessage({ text: '', type: '' }), 3000);
+      } else {
+          setSaveMessage({ text: t.priceUpdateError, type: 'error' });
+      }
+  };
+
   const handlePinChange = () => {
       if(!court) return;
       
@@ -367,7 +395,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                             >
                                 {SUBSCRIPTIONS.map(sub => (
                                     <option key={sub.id} value={sub.id}>
-                                        {sub.name} ({sub.hours} {t.gamesCount}) - {sub.price}₼
+                                        {sub.name} ({sub.hours} {t.gamesCount}) - {court.subscriptionPrice}₼
                                     </option>
                                 ))}
                             </select>
@@ -404,7 +432,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                      <span className="text-xl font-black text-slate-900">
                          {bookingType === 'hourly' 
                             ? `${court.pricePerHour} ₼` 
-                            : `${SUBSCRIPTIONS.find(s => s.id === selectedPlanId)?.price || 0} ₼`
+                            : `${court.subscriptionPrice} ₼`
                          }
                      </span>
                 </div>
@@ -467,7 +495,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
           <div>
             <div className="text-xs font-bold uppercase text-indigo-500 tracking-wider mb-1">{t.partnerAccess}</div>
             <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-tight">{court.name}</h2>
-            <p className="text-slate-400 text-sm mt-1">{court.address}</p>
+            <div className="flex items-center gap-2 mt-1">
+                <span className="text-slate-400 text-sm">{court.address}</span>
+                <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded text-xs font-bold">{court.pricePerHour} ₼/hr</span>
+            </div>
           </div>
       </div>
 
@@ -502,54 +533,93 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
                     </div>
-                    <h3 className="text-xl font-bold text-slate-900">{t.securitySettings}</h3>
-                    <p className="text-slate-500 text-sm">{t.changePin}</p>
+                    <h3 className="text-xl font-bold text-slate-900">{t.priceSettings}</h3>
                   </div>
 
-                  <div className="space-y-4">
-                      <div>
+                  <div className="space-y-6">
+                      {/* Price Management Section */}
+                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
                           <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                              {t.currentPin}
+                              {t.pricePerHourLabel}
                           </label>
-                          <input 
-                              type="password"
-                              value={oldPin}
-                              onChange={(e) => setOldPin(e.target.value)}
-                              maxLength={6}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-slate-400 text-center text-lg"
-                              placeholder="••••••"
-                          />
+                          <div className="flex gap-2 mb-4">
+                            <input 
+                                type="number"
+                                value={priceInput}
+                                onChange={(e) => setPriceInput(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                placeholder="30"
+                            />
+                          </div>
+
+                          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                              {t.subscriptionPriceLabel}
+                          </label>
+                          <div className="flex gap-2">
+                             <input 
+                                type="number"
+                                value={subPriceInput}
+                                onChange={(e) => setSubPriceInput(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                placeholder="100"
+                            />
+                          </div>
+                          
+                          <button 
+                                onClick={handlePriceSave}
+                                className="w-full mt-4 bg-indigo-600 text-white px-4 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200"
+                            >
+                                {t.saveChanges}
+                            </button>
                       </div>
-                      <div>
-                          <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                              {t.newPin}
-                          </label>
-                          <input 
-                              type="password"
-                              value={newPin}
-                              onChange={(e) => setNewPin(e.target.value)}
-                              maxLength={6}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-slate-400 text-center text-lg"
-                              placeholder="••••••"
-                          />
-                          <p className="text-[10px] text-slate-400 mt-1 text-center">
-                              {lang === 'az' ? 'Təhlükəsizlik üçün 6 rəqəmli kod daxil edin' : (lang === 'ru' ? 'Введите 6 цифр для безопасности' : 'Enter 6 digits for security')}
-                          </p>
+
+                      <div className="border-t border-slate-100 pt-6">
+                          <h3 className="text-xl font-bold text-slate-900 text-center mb-4">{t.securitySettings}</h3>
+                          <p className="text-slate-500 text-sm text-center mb-4">{t.changePin}</p>
+                          <div>
+                              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                                  {t.currentPin}
+                              </label>
+                              <input 
+                                  type="password"
+                                  value={oldPin}
+                                  onChange={(e) => setOldPin(e.target.value)}
+                                  maxLength={6}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-slate-400 text-center text-lg"
+                                  placeholder="••••••"
+                              />
+                          </div>
+                          <div className="mt-4">
+                              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
+                                  {t.newPin}
+                              </label>
+                              <input 
+                                  type="password"
+                                  value={newPin}
+                                  onChange={(e) => setNewPin(e.target.value)}
+                                  maxLength={6}
+                                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-slate-400 text-center text-lg"
+                                  placeholder="••••••"
+                              />
+                              <p className="text-[10px] text-slate-400 mt-1 text-center">
+                                  {lang === 'az' ? 'Təhlükəsizlik üçün 6 rəqəmli kod daxil edin' : (lang === 'ru' ? 'Введите 6 цифр для безопасности' : 'Enter 6 digits for security')}
+                              </p>
+                          </div>
+
+                          <button 
+                              onClick={handlePinChange}
+                              disabled={oldPin.length < 6 || newPin.length < 6}
+                              className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 mt-4 disabled:opacity-50"
+                          >
+                              {t.saveChanges}
+                          </button>
                       </div>
 
                       {saveMessage.text && (
-                          <div className={`p-3 rounded-xl text-sm font-bold text-center ${saveMessage.type === 'error' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                          <div className={`p-3 rounded-xl text-sm font-bold text-center animate-in fade-in slide-in-from-bottom-2 ${saveMessage.type === 'error' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>
                               {saveMessage.text}
                           </div>
                       )}
-
-                      <button 
-                          onClick={handlePinChange}
-                          disabled={oldPin.length < 6 || newPin.length < 6}
-                          className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 mt-4 disabled:opacity-50"
-                      >
-                          {t.saveChanges}
-                      </button>
 
                       {/* --- QR CODE SECTION --- */}
                       <div className="pt-8 mt-8 border-t border-slate-100">
