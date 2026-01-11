@@ -20,7 +20,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ lang }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const [unreadCount, setUnreadCount] = useState(1); // Start with 1 unread (Welcome msg)
   
   // Audio Recording State
@@ -28,36 +27,17 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ lang }) => {
   const [recordingTime, setRecordingTime] = useState(0);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const isOpenRef = useRef(isOpen); // Ref to track open state inside timeouts
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   
   // Media Recorder Refs
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const recordingIntervalRef = useRef<number | null>(null);
+  
+  // Persist stream to avoid repeated permissions
+  const streamRef = useRef<MediaStream | null>(null);
+  const startTimeRef = useRef<number>(0);
 
-  // Sync ref with state
-  useEffect(() => {
-    isOpenRef.current = isOpen;
-    if (isOpen) {
-        setUnreadCount(0);
-    }
-  }, [isOpen]);
-
-  // Initialize Audio
-  useEffect(() => {
-      audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); // Gentle chime
-      audioRef.current.volume = 0.5;
-  }, []);
-
-  const playSound = () => {
-      if (audioRef.current) {
-          audioRef.current.currentTime = 0;
-          audioRef.current.play().catch(e => console.log("Audio play blocked", e));
-      }
-  };
-
-  // Initialize with welcome message
+  // Initialize with welcome message only
   useEffect(() => {
     if (messages.length === 0) {
       setMessages([
@@ -72,36 +52,45 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ lang }) => {
     }
   }, [lang, t.chatWelcome]);
 
-  // DEMO: Simulate incoming message after 10 seconds to show notification
+  // Handle Open/Close state
   useEffect(() => {
-      const timer = setTimeout(() => {
-          const promoMsg: Message = {
-              id: 999,
-              text: lang === 'az' ? '💡 Bu gün üçün hələ boş yerlərimiz var!' : (lang === 'ru' ? '💡 На сегодня еще есть свободные слоты!' : '💡 We still have free slots for today!'),
-              sender: 'bot',
-              timestamp: new Date(),
-              type: 'text'
-          };
+    if (isOpen) {
+        setUnreadCount(0);
+    } else {
+        // Chat closed (minimized)
+        
+        // 1. If recording was in progress, stop the RECORDER logic, but KEEP the STREAM.
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+            mediaRecorderRef.current.stop();
+        }
+        setIsRecording(false);
+        setRecordingTime(0);
+        if (recordingIntervalRef.current) {
+            clearInterval(recordingIntervalRef.current);
+            recordingIntervalRef.current = null;
+        }
 
-          setMessages(prev => {
-              if (prev.some(m => m.id === 999)) return prev;
-              
-              // Only notify if chat is closed
-              if (!isOpenRef.current) {
-                  setUnreadCount(prevCount => prevCount + 1);
-                  playSound();
-              }
-              return [...prev, promoMsg];
-          });
-      }, 10000); // 10 seconds delay
+        // NOTE: We intentionally DO NOT stop streamRef.current here anymore.
+        // This keeps the permission "alive" so opening the chat again doesn't ask for permission.
+    }
+  }, [isOpen]);
 
-      return () => clearTimeout(timer);
-  }, [lang]);
+  // Cleanup on component unmount (when App is fully closed)
+  useEffect(() => {
+      return () => {
+          if (streamRef.current) {
+              streamRef.current.getTracks().forEach(track => track.stop());
+          }
+          if (recordingIntervalRef.current) {
+              clearInterval(recordingIntervalRef.current);
+          }
+      };
+  }, []);
 
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isOpen, isTyping]);
+  }, [messages, isOpen]);
 
   const handleSend = () => {
     if (!inputValue.trim()) return;
@@ -116,14 +105,18 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ lang }) => {
 
     setMessages(prev => [...prev, newUserMsg]);
     setInputValue('');
-    setIsTyping(true);
-
-    simulateBotResponse(inputValue);
   };
 
   const startRecording = async () => {
       try {
-          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          let stream = streamRef.current;
+
+          // Reuse existing stream if active to prevent permission prompt
+          if (!stream || !stream.active || stream.getTracks().some(t => t.readyState === 'ended')) {
+              stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+              streamRef.current = stream;
+          }
+
           const mediaRecorder = new MediaRecorder(stream);
           mediaRecorderRef.current = mediaRecorder;
           audioChunksRef.current = [];
@@ -137,7 +130,9 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ lang }) => {
           mediaRecorder.onstop = () => {
               const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
               const audioUrl = URL.createObjectURL(audioBlob);
-              const duration = recordingTime; // capture current time
+              
+              // Calculate duration based on elapsed time
+              const duration = Math.round((Date.now() - startTimeRef.current) / 1000);
 
               // Send Audio Message
               const newAudioMsg: Message = {
@@ -147,15 +142,14 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ lang }) => {
                   timestamp: new Date(),
                   type: 'audio',
                   audioUrl: audioUrl,
-                  duration: duration
+                  duration: duration > 0 ? duration : 1
               };
               
               setMessages(prev => [...prev, newAudioMsg]);
-              setIsTyping(true);
-              simulateBotResponse("audio");
           };
 
           mediaRecorder.start();
+          startTimeRef.current = Date.now();
           setIsRecording(true);
           setRecordingTime(0);
 
@@ -172,7 +166,7 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ lang }) => {
   const stopRecording = () => {
       if (mediaRecorderRef.current && isRecording) {
           mediaRecorderRef.current.stop();
-          mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop()); // Turn off mic
+          // Stream remains active for next time
           
           if (recordingIntervalRef.current) {
               clearInterval(recordingIntervalRef.current);
@@ -180,42 +174,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ lang }) => {
           setIsRecording(false);
       }
   };
-
-  const simulateBotResponse = (input: string) => {
-      // Simulate bot response
-      setTimeout(() => {
-        let botText = "";
-        const lowerInput = input.toLowerCase();
-        
-        if (input === "audio") {
-             botText = lang === 'az' ? '🎤 Səsli mesajınızı aldım! Qısa müddətdə dinləyib cavab verəcəyik.' : (lang === 'ru' ? '🎤 Голосовое получено! Мы прослушаем и ответим в ближайшее время.' : '🎤 Voice message received! We will listen and reply shortly.');
-        } else if (lowerInput.includes('qiymət') || lowerInput.includes('цена') || lowerInput.includes('price')) {
-          botText = lang === 'az' ? 'Qiymətlər saatlıq 30-50 AZN arasında dəyişir. Abunəliklər daha sərfəlidir!' : (lang === 'ru' ? 'Цены варьируются от 30 до 50 AZN в час. Абонементы выгоднее!' : 'Prices range from 30-50 AZN per hour. Subscriptions are cheaper!');
-        } else if (lowerInput.includes('ünvan') || lowerInput.includes('адрес') || lowerInput.includes('address')) {
-          botText = lang === 'az' ? 'Bütün meydançalarımız Sumqayıtda yerləşir. Xəritə düyməsinə klikləyərək dəqiq yeri görə bilərsiniz.' : (lang === 'ru' ? 'Все наши поля находятся в Сумгаите. Нажмите кнопку карты для точной локации.' : 'All our courts are in Sumqayit. Click the map button for exact location.');
-        } else {
-          botText = lang === 'az' ? 'Təşəkkürlər! Operatorumuz tezliklə sizinlə əlaqə saxlayacaq.' : (lang === 'ru' ? 'Спасибо! Наш оператор скоро свяжется с вами.' : 'Thanks! An operator will be with you shortly.');
-        }
-
-        const newBotMsg: Message = {
-          id: Date.now() + 1,
-          text: botText,
-          sender: 'bot',
-          timestamp: new Date(),
-          type: 'text'
-        };
-
-        setMessages(prev => [...prev, newBotMsg]);
-        setIsTyping(false);
-        
-        // Notify if user closed chat while waiting
-        if (!isOpenRef.current) {
-            setUnreadCount(prev => prev + 1);
-            playSound();
-        }
-
-      }, 1500);
-  }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -296,15 +254,6 @@ const ChatWidget: React.FC<ChatWidgetProps> = ({ lang }) => {
                 </div>
               </div>
             ))}
-            {isTyping && (
-              <div className="flex justify-start">
-                 <div className="bg-white px-4 py-3 rounded-2xl rounded-tl-sm shadow-sm border border-slate-100 flex gap-1">
-                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce"></div>
-                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                 </div>
-              </div>
-            )}
             <div ref={messagesEndRef} />
           </div>
 
