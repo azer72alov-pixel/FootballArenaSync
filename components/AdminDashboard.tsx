@@ -12,14 +12,15 @@ interface AdminDashboardProps {
   managedCourtId: string;
   allCourts: Court[];
   onBack: () => void;
-  onUpdateSettings: (courtId: string, settings: { pricePerHour?: number, subscriptionPrice?: number }) => void;
+  // Updated signature to include PIN
+  onUpdateSettings: (courtId: string, settings: { pricePerHour?: number, subscriptionPrice?: number, pin?: string }) => void;
 }
 
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, allCourts, onBack, onUpdateSettings }) => {
   const t = TRANSLATIONS[lang];
   const court = allCourts.find(c => c.id === managedCourtId);
 
-  // Tab State: Added 'announcements'
+  // Tab State
   const [activeTab, setActiveTab] = useState<'hourly' | 'subscription' | 'settings' | 'sections' | 'announcements'>('hourly');
 
   // Calendar State
@@ -48,32 +49,25 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
 
   // Announcement State
   const [announcementText, setAnnouncementText] = useState('');
-  const [targetSectionId, setTargetSectionId] = useState<string>('all'); // 'all' or section UUID
+  const [targetSectionId, setTargetSectionId] = useState<string>('all'); 
 
   // Sound & Notification State
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [notification, setNotification] = useState<{message: string, visible: boolean} | null>(null);
   
-  // Audio Ref - Using a gentle chime sound
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Store bookings from DB
   const [localBookings, setLocalBookings] = useState<any[]>([]);
 
-  // Initialize Audio & Sections
   useEffect(() => {
     audioRef.current = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-    
-    // Load sections from local storage
     if (managedCourtId) {
         const stored = localStorage.getItem(`court_sections_${managedCourtId}`);
         if (stored) setSections(JSON.parse(stored));
     }
   }, [managedCourtId]);
 
-  // Update local price inputs if prop changes
   useEffect(() => {
       if (court) {
           setPriceInput(court.pricePerHour.toString());
@@ -81,7 +75,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
       }
   }, [court]);
 
-  // Play sound function
   const playNotification = () => {
       if (soundEnabled && audioRef.current) {
           audioRef.current.currentTime = 0;
@@ -89,7 +82,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
       }
   };
 
-  // Show visual toast
   const showNotification = (msg: string) => {
       setNotification({ message: msg, visible: true });
       setTimeout(() => {
@@ -97,15 +89,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
       }, 5000);
   };
 
-  // FETCH BOOKINGS
   const fetchAllBookings = async () => {
-    const { data, error } = await supabase
-        .from('bookings')
-        .select('*')
-        .eq('court_id', managedCourtId);
-    
+    const { data } = await supabase.from('bookings').select('*').eq('court_id', managedCourtId);
     if (data) {
-        // Mapping DB columns to component state structure
         const mapped = data.map((b: any) => ({
             id: b.id,
             customer: b.customer_name,
@@ -141,20 +127,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
     return () => { supabase.removeChannel(channel); }
   }, [managedCourtId, soundEnabled]); 
 
-  // 1. Calculate which dates have ANY bookings (for Calendar dots)
   const bookedDatesSet = useMemo(() => {
     const dates = new Set<string>();
     localBookings.forEach(b => dates.add(b.dateStr));
     return dates;
   }, [localBookings]);
 
-  // 2. Calculate bookings + sections for the CURRENTLY selected date (for TimeGrid)
   const dayBookings = useMemo(() => {
-    // A. Real DB Bookings
     const dateKey = formatDateLocal(selectedDate);
     const dbBookings = localBookings.filter(b => b.dateStr === dateKey);
 
-    // B. Virtual Section Bookings
     const dayOfWeek = selectedDate.getDay();
     const activeSections = sections.filter(s => s.days.includes(dayOfWeek));
     const sectionBookings: any[] = [];
@@ -165,7 +147,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
             sectionBookings.push({
                 hour: h,
                 type: 'section',
-                // Mock data to match structure
                 id: `sec_${s.id}_${h}`,
                 customer: s.name,
                 status: 'occupied'
@@ -176,7 +157,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
     return [...dbBookings, ...sectionBookings];
   }, [selectedDate, localBookings, sections]);
 
-  // 3. Filter bookings for the Bottom Table based on Active Tab
   const tableBookings = useMemo(() => {
       if (activeTab === 'settings' || activeTab === 'sections' || activeTab === 'announcements') return [];
       return localBookings.filter(b => b.type === activeTab);
@@ -274,12 +254,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
 
   const handlePinChange = () => {
       if(!court) return;
-      const storedPin = localStorage.getItem(`court_pin_${court.id}`);
-      const actualCurrentPin = storedPin || court.pin;
-      if (oldPin !== actualCurrentPin) { setSaveMessage({ text: t.pinError, type: 'error' }); return; }
+      // We now trust the 'court.pin' coming from props (which is synced from DB)
+      const currentPin = court.pin; 
+      
+      if (oldPin !== currentPin) { setSaveMessage({ text: t.pinError, type: 'error' }); return; }
       if (newPin.length !== 6) { setSaveMessage({ text: lang === 'az' ? 'PIN 6 rəqəm olmalıdır' : 'PIN must be 6 digits', type: 'error' }); return; }
       if (allCourts.some(c => c.pin === newPin && c.id !== court.id)) { setSaveMessage({ text: t.pinError, type: 'error' }); return; }
-      localStorage.setItem(`court_pin_${court.id}`, newPin);
+      
+      // Update via Prop to sync to DB
+      onUpdateSettings(managedCourtId, { pin: newPin });
+      
       setSaveMessage({ text: t.pinUpdated, type: 'success' });
       setOldPin(''); setNewPin('');
       setTimeout(() => setSaveMessage({ text: '', type: '' }), 3000);
@@ -309,7 +293,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
       }
   };
 
-  // Section Management Handlers
   const handleAddSection = () => {
       if (!newSectionName || newSectionDays.length === 0) return;
       const newSection: Section = {
@@ -366,8 +349,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
 
   return (
     <div className="animate-in fade-in duration-500 pb-20 relative">
-      
-      {/* ---------------- ALERT NOTIFICATION ---------------- */}
       {notification && notification.visible && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-sm">
             <div className="bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center justify-between animate-in slide-in-from-top-10 fade-in duration-300 border border-slate-700">
@@ -380,7 +361,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
         </div>
       )}
 
-      {/* ---------------- MODAL ---------------- */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={closeModal}></div>
@@ -479,7 +459,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
         </div>
       )}
 
-      {/* Header and Back Button */}
       <div className="flex items-center justify-between mb-6">
         <button 
             onClick={onBack}
@@ -510,7 +489,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
         </div>
       </div>
 
-      {/* Owner Header */}
       <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200 mb-8 flex items-center gap-6">
           <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-lg shrink-0">
               <img src={court.image} alt={court.name} className="w-full h-full object-cover" />
@@ -525,7 +503,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
           </div>
       </div>
 
-      {/* TABS */}
       <div className="flex p-1 bg-slate-100 rounded-2xl mb-8 overflow-x-auto">
           <button 
             onClick={() => setActiveTab('hourly')}
@@ -626,7 +603,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
           </div>
       ) : activeTab === 'sections' ? (
           <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
-              {/* Add New Section Card */}
               <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200">
                   <h3 className="text-lg font-bold text-slate-900 mb-6">{t.createSection}</h3>
                   <div className="space-y-4">
@@ -692,7 +668,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                   </div>
               </div>
 
-              {/* Sections List */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {sections.map(section => (
                       <div key={section.id} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm relative overflow-hidden">
@@ -730,7 +705,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200">
                   <h3 className="text-lg font-bold text-slate-900 mb-4">{t.postAnnouncement}</h3>
                   
-                  {/* Target Audience Selector */}
                   <div className="mb-4">
                       <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{t.targetAudience}</label>
                       <select 
@@ -765,7 +739,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
           </div>
       ) : (
         <>
-            {/* Stats Cards - Always visible in management tabs */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
                 {stats.map((stat, idx) => (
                 <div key={idx} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 relative overflow-hidden">
@@ -784,7 +757,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                 ))}
             </div>
 
-            {/* Schedule Management Section - Visible for both, but context changes */}
             <div className="mb-10">
                 <div className="flex items-center justify-between mb-6">
                     <h3 className="font-bold text-slate-900 text-lg">
@@ -815,7 +787,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                 </div>
             </div>
 
-            {/* Bookings Table - Filtered by Tab */}
             <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden min-h-[300px]">
                 <div className="px-6 py-6 border-b border-slate-100 flex justify-between items-center">
                 <h3 className="font-bold text-slate-900 text-lg">
