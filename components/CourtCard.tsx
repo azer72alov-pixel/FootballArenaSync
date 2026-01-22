@@ -11,7 +11,10 @@ interface CourtCardProps {
 
 const CourtCard: React.FC<CourtCardProps> = ({ court, isSelected, onSelect, lang }) => {
   const t = TRANSLATIONS[lang];
-  const courtTypeLabel = t[court.type.toLowerCase() as keyof typeof t] || court.type;
+  
+  // Safe access to translation. Ensure we only pick string values, as 'weekDays' is an object.
+  const rawLabel = t[court.type.toLowerCase() as keyof typeof t];
+  const courtTypeLabel = typeof rawLabel === 'string' ? rawLabel : court.type;
 
   const handleMapClick = (e: React.MouseEvent) => {
     e.stopPropagation();

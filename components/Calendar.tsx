@@ -9,7 +9,12 @@ interface CalendarProps {
 
 const Calendar: React.FC<CalendarProps> = ({ selectedDate, onDateChange, lang, bookedDates }) => {
   const [currentMonthIndex, setCurrentMonthIndex] = useState(0); 
-  const locale = lang === 'az' ? 'az-AZ' : (lang === 'ru' ? 'ru-RU' : 'en-US');
+  
+  const monthNames = {
+    az: ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'İyun', 'İyul', 'Avqust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'],
+    ru: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'],
+    en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+  };
   
   const getMonths = () => {
     const months = [];
@@ -96,7 +101,7 @@ const Calendar: React.FC<CalendarProps> = ({ selectedDate, onDateChange, lang, b
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
-            {currentMonth.toLocaleDateString(locale, { month: 'long', year: 'numeric' })}
+            {monthNames[lang][currentMonth.getMonth()]} {currentMonth.getFullYear()}
         </h3>
         <div className="flex space-x-1 bg-slate-50 p-1 rounded-xl">
           <button onClick={handlePrev} disabled={currentMonthIndex === 0} className="p-2 rounded-lg hover:bg-white hover:shadow-sm disabled:opacity-30 transition-all">
