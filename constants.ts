@@ -7,10 +7,20 @@ export const SUPER_ADMIN_PIN = '999999'; // <-- ВАШ КОД СУПЕР-АДМ�
 
 // =================================================================
 // 🤖 BOT CONFIGURATION
-// Ссылка на ваше Mini App. Замените на реальную ссылку вашего бота!
-// Например: https://t.me/MyArenaBot/app
+// Ссылка на ваше Mini App.
+// Было: https://t.me/ArenaSyncBot/app
+// Стало: https://t.me/MyArenaSync/app
 // =================================================================
-export const PLATFORM_BOT_LINK = 'https://t.me/ArenaSyncBot/app';
+export const PLATFORM_BOT_LINK = 'https://t.me/MyArenaSync/app';
+
+// =================================================================
+// 📱 ANDROID APK LINK
+// Ссылка для скачивания APK файла.
+// ВАЖНО: Чтобы это работало, вы должны поместить файл 'ArenaSync.apk' 
+// в папку 'public/android/' вашего проекта перед деплоем на Vercel.
+// Либо замените эту ссылку на прямую ссылку (Google Drive, GitHub Releases и т.д.)
+// =================================================================
+export const ANDROID_APP_LINK = 'https://arena-sync.vercel.app/android/ArenaSync.apk'; 
 
 // =================================================================
 // 🔔 TELEGRAM CONFIGURATION
