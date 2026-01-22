@@ -16,6 +16,25 @@ interface AdminDashboardProps {
   onUpdateSettings: (courtId: string, settings: { pricePerHour?: number, subscriptionPrice?: number, pin?: string }) => void;
 }
 
+// Manual Constants for consistent display
+const WEEKDAYS = {
+    az: ['Bazar', 'Bazar ertəsi', 'Çərşənbə axşamı', 'Çərşənbə', 'Cümə axşamı', 'Cümə', 'Şənbə'],
+    ru: ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'],
+    en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+};
+
+const MONTHS = {
+    az: ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'İyun', 'İyul', 'Avqust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'],
+    ru: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'],
+    en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+};
+
+const SHORT_MONTHS = {
+    az: ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'İyun', 'İyul', 'Avq', 'Sen', 'Okt', 'Noy', 'Dek'],
+    ru: ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'],
+    en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+};
+
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, allCourts, onBack, onUpdateSettings }) => {
   const t = TRANSLATIONS[lang];
   const court = allCourts.find(c => c.id === managedCourtId);
@@ -89,6 +108,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
       }, 5000);
   };
 
+  const triggerHapticSuccess = () => {
+      const tg = window.Telegram?.WebApp;
+      // @ts-ignore
+      if (tg && tg.HapticFeedback && tg.isVersionAtLeast && tg.isVersionAtLeast('6.1')) {
+          tg.HapticFeedback.notificationOccurred('success');
+      }
+  }
+
   const fetchAllBookings = async () => {
     const { data } = await supabase.from('bookings').select('*').eq('court_id', managedCourtId);
     if (data) {
@@ -117,9 +144,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
              const date = payload.new.date;
              playNotification();
              showNotification(`${t.newBookingAlert} ${date} @ ${hour}:00`);
-             if (window.Telegram?.WebApp) {
-                 window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-             }
+             triggerHapticSuccess();
         }
         fetchAllBookings();
       })
@@ -285,9 +310,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
       if (!error) {
           setAnnouncementText('');
           showNotification(t.announcementPosted);
-          if (window.Telegram?.WebApp) {
-              window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-          }
+          triggerHapticSuccess();
       } else {
           showNotification("Error posting announcement");
       }
@@ -340,9 +363,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
       for(let i=0; i<count; i++) {
           const d = new Date(selectedDate);
           d.setDate(selectedDate.getDate() + (i * 7));
-          dates.push(d.toLocaleDateString(lang === 'az' ? 'az-AZ' : (lang === 'ru' ? 'ru-RU' : 'en-US'), {day: 'numeric', month: 'short'}));
+          // Manual format for short preview
+          const day = d.getDate();
+          const month = SHORT_MONTHS[lang][d.getMonth()];
+          dates.push(`${day} ${month}`);
       }
       return dates;
+  }
+
+  // Format date for modal header manually
+  const formatModalDate = () => {
+      const dayName = WEEKDAYS[lang][selectedDate.getDay()];
+      const dayNum = selectedDate.getDate();
+      const monthName = MONTHS[lang][selectedDate.getMonth()];
+      return `${dayName}, ${dayNum} ${monthName}`;
   }
 
   if (!court) return <div>Error: Court not found</div>;
@@ -382,7 +416,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
 
                 <div className="space-y-4 mb-6">
                     <div className="flex items-center justify-between text-sm font-medium text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                         <span>{selectedDate.toLocaleDateString(lang === 'az' ? 'az-AZ' : (lang === 'ru' ? 'ru-RU' : 'en-US'), {weekday: 'long', day:'numeric', month:'short'})}</span>
+                         <span>{formatModalDate()}</span>
                          <span className="font-bold text-slate-900">{selectedHour}:00 - {selectedHour! + 1}:00</span>
                     </div>
 
