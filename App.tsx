@@ -19,6 +19,13 @@ export const formatDateLocal = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+// Manual Month Names to avoid "M01" issues in some locales/browsers
+const MONTH_NAMES = {
+    az: ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'İyun', 'İyul', 'Avq', 'Sen', 'Okt', 'Noy', 'Dek'],
+    ru: ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'],
+    en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+};
+
 const App: React.FC = () => {
   const tg = window.Telegram?.WebApp;
   const [lang, setLang] = useState<'az' | 'ru' | 'en'>('az');
@@ -68,9 +75,17 @@ const App: React.FC = () => {
 
   const t = TRANSLATIONS[lang];
 
+  // Helper for safe Haptic Feedback
+  const triggerHaptic = (type: 'success' | 'error' | 'warning') => {
+      // @ts-ignore
+      if (tg && tg.HapticFeedback && tg.isVersionAtLeast && tg.isVersionAtLeast('6.1')) {
+          tg.HapticFeedback.notificationOccurred(type);
+      }
+  };
+
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
       setToast({ message, type });
-      if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred(type === 'error' ? 'error' : 'success');
+      if (type !== 'info') triggerHaptic(type === 'error' ? 'error' : 'success');
       setTimeout(() => setToast(null), 3500);
   };
 
@@ -381,7 +396,7 @@ const App: React.FC = () => {
         setBookingSuccess(true);
         if (tg) {
             tg.MainButton.hide();
-            tg.HapticFeedback.notificationOccurred('success');
+            triggerHaptic('success');
         }
     } catch (e) {
         setIsBooking(false);
@@ -478,7 +493,10 @@ const App: React.FC = () => {
       for(let i=0; i < selectedSubscription.hours; i++) {
            const d = new Date(selectedDate);
            d.setDate(selectedDate.getDate() + (i * 7));
-           dates.push(d.toLocaleDateString(lang === 'az' ? 'az-AZ' : (lang === 'ru' ? 'ru-RU' : 'en-US'), {day: 'numeric', month: 'short'}));
+           // Manual formatting replacing toLocaleDateString to fix "M01" bug
+           const day = d.getDate();
+           const month = MONTH_NAMES[lang][d.getMonth()];
+           dates.push(`${day} ${month}`);
       }
       return dates;
   }
