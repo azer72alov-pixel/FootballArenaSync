@@ -1,7 +1,7 @@
 {
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!android/|assets/|sw.js|manifest.json|favicon.ico).*)",
       "destination": "/index.html"
     }
   ]
