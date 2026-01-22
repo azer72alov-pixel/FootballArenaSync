@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { TRANSLATIONS } from '../translations';
 import { supabase } from '../supabase';
-import { PLATFORM_BOT_LINK } from '../constants'; 
+import { PLATFORM_BOT_LINK, ANDROID_APP_LINK } from '../constants'; 
 import { BeforeInstallPromptEvent } from '../types';
 
 interface LayoutProps {
@@ -23,6 +23,7 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
 
   // Modals
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [qrType, setQrType] = useState<'telegram' | 'android'>('telegram');
   
   // PWA Install State
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -63,7 +64,8 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
           if (onSecretTrigger) {
               onSecretTrigger();
               if (window.Telegram?.WebApp) {
-                  window.Telegram.WebApp.HapticFeedback.notificationOccurred('warning');
+                  // @ts-ignore
+                  if (window.Telegram.WebApp.HapticFeedback) window.Telegram.WebApp.HapticFeedback.notificationOccurred('warning');
               }
           }
           setLogoTapCount(0);
@@ -74,15 +76,33 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
       }, 1000);
   };
 
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(PLATFORM_BOT_LINK)}&color=0f172a`;
+  // Logic to determine the Target Link
+  const getTargetLink = () => {
+      if (qrType === 'telegram') return PLATFORM_BOT_LINK;
+      
+      // For Android, we need an absolute URL for the QR code
+      if (typeof window !== 'undefined') {
+          return `${window.location.origin}${ANDROID_APP_LINK}`;
+      }
+      return ANDROID_APP_LINK;
+  };
+
+  const targetLink = getTargetLink();
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(targetLink)}&color=0f172a`;
 
   const copyLink = () => {
-      navigator.clipboard.writeText(PLATFORM_BOT_LINK);
+      navigator.clipboard.writeText(targetLink);
       if (window.Telegram?.WebApp) {
-          window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
+          // @ts-ignore
+          if (window.Telegram.WebApp.HapticFeedback) window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
       }
       setIsQrModalOpen(false);
   };
+
+  const openLink = () => {
+      window.open(targetLink, '_blank');
+      setIsQrModalOpen(false);
+  }
 
   return (
     <div className="min-h-screen pb-[env(safe-area-inset-bottom)] transition-colors duration-200" style={{ backgroundColor: 'var(--tg-theme-bg-color, #f8fafc)' }}>
@@ -91,13 +111,21 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
              <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => setIsQrModalOpen(false)}></div>
              <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-sm shadow-2xl relative z-10 animate-in zoom-in-95 duration-200 flex flex-col items-center text-center">
-                 <div className="w-16 h-16 bg-indigo-100 rounded-full flex items-center justify-center mb-6 text-indigo-600 shadow-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zM6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                 <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-6 text-white shadow-sm ${qrType === 'telegram' ? 'bg-indigo-500' : 'bg-emerald-500'}`}>
+                    {qrType === 'telegram' ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zM6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                    ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" viewBox="0 0 24 24" fill="currentColor">
+                             <path d="M7.7 5.6l-1.3-1.3c-.2-.2-.2-.5 0-.7.2-.2.5-.2.7 0l1.3 1.3c1-.6 2.2-.9 3.6-.9 1.4 0 2.6.4 3.6.9l1.3-1.3c.2-.2.5-.2.7 0 .2.2.2.5 0 .7l-1.3 1.3C18 7.2 19.3 9.4 19.3 12h-14.6C4.7 9.4 6 7.2 7.7 5.6zM7.5 9c-.8 0-1.5.7-1.5 1.5s.7 1.5 1.5 1.5 1.5-.7 1.5-1.5-.7-1.5-1.5-1.5zm9 0c-.8 0-1.5.7-1.5 1.5s.7 1.5 1.5 1.5 1.5-.7 1.5-1.5-.7-1.5-1.5-1.5z M19.3 13H4.7c0 4.1 3.1 7.4 7.3 7.4 4.1 0 7.3-3.3 7.3-7.4z"/>
+                        </svg>
+                    )}
                  </div>
                  
-                 <h3 className="text-2xl font-black text-slate-900 mb-2">{t.shareApp}</h3>
+                 <h3 className="text-2xl font-black text-slate-900 mb-2">
+                     {qrType === 'telegram' ? t.shareApp : t.androidApp}
+                 </h3>
                  <p className="text-slate-500 text-sm mb-6 max-w-[200px]">{t.scanToOpenApp}</p>
                  
                  <div className="bg-white p-4 rounded-3xl shadow-inner border border-slate-100 mb-8">
@@ -108,9 +136,15 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
                      <button onClick={() => setIsQrModalOpen(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 font-bold rounded-xl hover:bg-slate-200 transition-colors">
                          {t.close}
                      </button>
-                     <button onClick={copyLink} className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200">
-                         {t.copyLink}
-                     </button>
+                     {qrType === 'telegram' ? (
+                        <button onClick={copyLink} className="flex-1 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200">
+                            {t.copyLink}
+                        </button>
+                     ) : (
+                        <button onClick={openLink} className="flex-1 py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200">
+                            {t.downloadApk}
+                        </button>
+                     )}
                  </div>
              </div>
         </div>
@@ -165,13 +199,25 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
               </button>
             )}
 
-            {/* QR Button */}
+            {/* Android Link Button */}
             <button 
-                onClick={() => setIsQrModalOpen(true)}
+                onClick={() => { setQrType('android'); setIsQrModalOpen(true); }}
+                className="bg-slate-100 hover:bg-emerald-100 text-slate-600 hover:text-emerald-600 p-2 rounded-xl transition-colors"
+                title={t.androidApp}
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7.7 5.6l-1.3-1.3c-.2-.2-.2-.5 0-.7.2-.2.5-.2.7 0l1.3 1.3c1-.6 2.2-.9 3.6-.9 1.4 0 2.6.4 3.6.9l1.3-1.3c.2-.2.5-.2.7 0 .2.2.2.5 0 .7l-1.3 1.3C18 7.2 19.3 9.4 19.3 12h-14.6C4.7 9.4 6 7.2 7.7 5.6zM7.5 9c-.8 0-1.5.7-1.5 1.5s.7 1.5 1.5 1.5 1.5-.7 1.5-1.5-.7-1.5-1.5-1.5zm9 0c-.8 0-1.5.7-1.5 1.5s.7 1.5 1.5 1.5 1.5-.7 1.5-1.5-.7-1.5-1.5-1.5z M19.3 13H4.7c0 4.1 3.1 7.4 7.3 7.4 4.1 0 7.3-3.3 7.3-7.4z"/>
+                </svg>
+            </button>
+
+            {/* QR Button (Telegram) */}
+            <button 
+                onClick={() => { setQrType('telegram'); setIsQrModalOpen(true); }}
                 className="bg-slate-100 hover:bg-slate-200 text-slate-600 p-2 rounded-xl transition-colors"
+                title={t.shareApp}
             >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zM6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zM6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
             </button>
 
