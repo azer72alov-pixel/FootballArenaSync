@@ -16,6 +16,25 @@ interface AdminDashboardProps {
   onUpdateSettings: (courtId: string, settings: { pricePerHour?: number, subscriptionPrice?: number, pin?: string }) => void;
 }
 
+// Manual Constants for consistent display
+const WEEKDAYS = {
+    az: ['Bazar', 'Bazar ertəsi', 'Çərşənbə axşamı', 'Çərşənbə', 'Cümə axşamı', 'Cümə', 'Şənbə'],
+    ru: ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'],
+    en: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+};
+
+const MONTHS = {
+    az: ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'İyun', 'İyul', 'Avqust', 'Sentyabr', 'Oktyabr', 'Noyabr', 'Dekabr'],
+    ru: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'],
+    en: ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+};
+
+const SHORT_MONTHS = {
+    az: ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'İyun', 'İyul', 'Avq', 'Sen', 'Okt', 'Noy', 'Dek'],
+    ru: ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'],
+    en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+};
+
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, allCourts, onBack, onUpdateSettings }) => {
   const t = TRANSLATIONS[lang];
   const court = allCourts.find(c => c.id === managedCourtId);
@@ -89,6 +108,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
       }, 5000);
   };
 
+  const triggerHapticSuccess = () => {
+      const tg = window.Telegram?.WebApp;
+      // @ts-ignore
+      if (tg && tg.HapticFeedback && tg.isVersionAtLeast && tg.isVersionAtLeast('6.1')) {
+          tg.HapticFeedback.notificationOccurred('success');
+      }
+  }
+
   const fetchAllBookings = async () => {
     const { data } = await supabase.from('bookings').select('*').eq('court_id', managedCourtId);
     if (data) {
@@ -117,9 +144,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
              const date = payload.new.date;
              playNotification();
              showNotification(`${t.newBookingAlert} ${date} @ ${hour}:00`);
-             if (window.Telegram?.WebApp) {
-                 window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-             }
+             triggerHapticSuccess();
         }
         fetchAllBookings();
       })
@@ -285,9 +310,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
       if (!error) {
           setAnnouncementText('');
           showNotification(t.announcementPosted);
-          if (window.Telegram?.WebApp) {
-              window.Telegram.WebApp.HapticFeedback.notificationOccurred('success');
-          }
+          triggerHapticSuccess();
       } else {
           showNotification("Error posting announcement");
       }
@@ -340,9 +363,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
       for(let i=0; i<count; i++) {
           const d = new Date(selectedDate);
           d.setDate(selectedDate.getDate() + (i * 7));
-          dates.push(d.toLocaleDateString(lang === 'az' ? 'az-AZ' : (lang === 'ru' ? 'ru-RU' : 'en-US'), {day: 'numeric', month: 'short'}));
+          // Manual format for short preview
+          const day = d.getDate();
+          const month = SHORT_MONTHS[lang][d.getMonth()];
+          dates.push(`${day} ${month}`);
       }
       return dates;
+  }
+
+  // Format date for modal header manually
+  const formatModalDate = () => {
+      const dayName = WEEKDAYS[lang][selectedDate.getDay()];
+      const dayNum = selectedDate.getDate();
+      const monthName = MONTHS[lang][selectedDate.getMonth()];
+      return `${dayName}, ${dayNum} ${monthName}`;
   }
 
   if (!court) return <div>Error: Court not found</div>;
@@ -364,7 +398,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={closeModal}></div>
-            <div className="bg-white rounded-[2rem] p-6 w-full max-w-sm shadow-2xl relative z-10 animate-in zoom-in-95 duration-200">
+            <div className="bg-white/95 backdrop-blur-xl rounded-[2rem] p-6 w-full max-w-sm shadow-2xl relative z-10 animate-in zoom-in-95 duration-200">
                 <div className={`w-12 h-12 rounded-xl mb-4 flex items-center justify-center text-white shadow-lg ${bookingType === 'subscription' ? 'bg-purple-600 shadow-purple-200' : 'bg-indigo-600 shadow-indigo-200'}`}>
                     {bookingType === 'subscription' ? (
                          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
@@ -382,7 +416,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
 
                 <div className="space-y-4 mb-6">
                     <div className="flex items-center justify-between text-sm font-medium text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-100">
-                         <span>{selectedDate.toLocaleDateString(lang === 'az' ? 'az-AZ' : (lang === 'ru' ? 'ru-RU' : 'en-US'), {weekday: 'long', day:'numeric', month:'short'})}</span>
+                         <span>{formatModalDate()}</span>
                          <span className="font-bold text-slate-900">{selectedHour}:00 - {selectedHour! + 1}:00</span>
                     </div>
 
@@ -462,14 +496,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
       <div className="flex items-center justify-between mb-6">
         <button 
             onClick={onBack}
-            className="flex items-center text-slate-500 hover:text-indigo-600 font-medium transition-colors"
+            className="flex items-center text-slate-500 hover:text-indigo-600 font-medium transition-colors bg-white/50 px-3 py-2 rounded-xl backdrop-blur-sm"
         >
             <span className="mr-2 text-xl">‹</span> {t.backToDashboard}
         </button>
         <div className="flex items-center gap-2">
             <button 
                 onClick={() => setSoundEnabled(!soundEnabled)}
-                className={`flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${soundEnabled ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}
+                className={`flex items-center gap-1 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors backdrop-blur-sm ${soundEnabled ? 'bg-emerald-100/80 text-emerald-600' : 'bg-white/50 text-slate-400'}`}
             >
                 {soundEnabled ? (
                     <>
@@ -483,13 +517,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                     </>
                 )}
             </button>
-            <div className="text-xs font-bold bg-slate-100 text-slate-500 px-3 py-1 rounded-full">
+            <div className="text-xs font-bold bg-white/50 text-slate-500 px-3 py-1 rounded-full backdrop-blur-sm">
                 Admin Mode
             </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-200 mb-8 flex items-center gap-6">
+      <div className="bg-white/80 backdrop-blur-md rounded-3xl p-6 shadow-sm border border-white/50 mb-8 flex items-center gap-6">
           <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-lg shrink-0">
               <img src={court.image} alt={court.name} className="w-full h-full object-cover" />
           </div>
@@ -497,13 +531,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
             <div className="text-xs font-bold uppercase text-indigo-500 tracking-wider mb-1">{t.partnerAccess}</div>
             <h2 className="text-xl md:text-2xl font-black text-slate-900 leading-tight">{court.name}</h2>
             <div className="flex items-center gap-2 mt-1">
-                <span className="text-slate-400 text-sm">{court.address}</span>
-                <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded text-xs font-bold">{court.pricePerHour} ₼/hr</span>
+                <span className="text-slate-500 text-sm">{court.address}</span>
+                <span className="bg-indigo-50/50 text-indigo-600 px-2 py-0.5 rounded text-xs font-bold">{court.pricePerHour} ₼/hr</span>
             </div>
           </div>
       </div>
 
-      <div className="flex p-1 bg-slate-100 rounded-2xl mb-8 overflow-x-auto">
+      <div className="flex p-1 bg-white/40 backdrop-blur-sm rounded-2xl mb-8 overflow-x-auto">
           <button 
             onClick={() => setActiveTab('hourly')}
             className={`flex-1 min-w-[100px] py-3 rounded-xl font-bold text-sm transition-all duration-300 ${activeTab === 'hourly' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-500 hover:text-slate-700'}`}
@@ -537,10 +571,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
       </div>
 
       {activeTab === 'settings' ? (
-          <div className="bg-white rounded-[2rem] p-8 shadow-xl shadow-slate-200/50 border border-slate-100 animate-in fade-in slide-in-from-right-4">
+          <div className="bg-white/80 backdrop-blur-md rounded-[2rem] p-8 shadow-xl shadow-slate-200/50 border border-white/50 animate-in fade-in slide-in-from-right-4">
               <div className="max-w-md mx-auto">
                   <div className="mb-8 text-center">
-                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-500">
+                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 text-slate-500 shadow-sm">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                         </svg>
@@ -549,7 +583,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                   </div>
 
                   <div className="space-y-6">
-                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                      <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100">
                           <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
                               {t.pricePerHourLabel}
                           </label>
@@ -577,21 +611,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                           </button>
                       </div>
 
-                      <div className="border-t border-slate-100 pt-6">
+                      <div className="border-t border-slate-200/50 pt-6">
                           <h3 className="text-xl font-bold text-slate-900 text-center mb-4">{t.securitySettings}</h3>
                           <p className="text-slate-500 text-sm text-center mb-4">{t.changePin}</p>
                           <div>
                               <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{t.currentPin}</label>
-                              <input type="password" value={oldPin} onChange={(e) => setOldPin(e.target.value)} maxLength={6} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-slate-400 text-center text-lg" placeholder="••••••" />
+                              <input type="password" value={oldPin} onChange={(e) => setOldPin(e.target.value)} maxLength={6} className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-slate-400 text-center text-lg" placeholder="••••••" />
                           </div>
                           <div className="mt-4">
                               <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{t.newPin}</label>
-                              <input type="password" value={newPin} onChange={(e) => setNewPin(e.target.value)} maxLength={6} className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-slate-400 text-center text-lg" placeholder="••••••" />
+                              <input type="password" value={newPin} onChange={(e) => setNewPin(e.target.value)} maxLength={6} className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold tracking-widest focus:outline-none focus:ring-2 focus:ring-slate-400 text-center text-lg" placeholder="••••••" />
                           </div>
                           <button onClick={handlePinChange} disabled={oldPin.length < 6 || newPin.length < 6} className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-200 mt-4 disabled:opacity-50">{t.saveChanges}</button>
                       </div>
                       {saveMessage.text && <div className={`p-3 rounded-xl text-sm font-bold text-center animate-in fade-in slide-in-from-bottom-2 ${saveMessage.type === 'error' ? 'bg-red-50 text-red-600' : 'bg-emerald-50 text-emerald-600'}`}>{saveMessage.text}</div>}
-                      <div className="pt-8 mt-8 border-t border-slate-100">
+                      <div className="pt-8 mt-8 border-t border-slate-200/50">
                           <h3 className="text-lg font-bold text-slate-900 text-center mb-4">{t.venueQr}</h3>
                           <div className="bg-white p-4 rounded-2xl shadow-inner border border-slate-100 flex flex-col items-center">
                               <img src={qrCodeUrl} alt="Venue QR Code" className="w-48 h-48 mb-4 rounded-lg mix-blend-multiply" />
@@ -603,7 +637,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
           </div>
       ) : activeTab === 'sections' ? (
           <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
-              <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200">
+              <div className="bg-white/80 backdrop-blur-md rounded-[2rem] p-6 shadow-sm border border-white/50">
                   <h3 className="text-lg font-bold text-slate-900 mb-6">{t.createSection}</h3>
                   <div className="space-y-4">
                       <div>
@@ -613,7 +647,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                               value={newSectionName}
                               onChange={(e) => setNewSectionName(e.target.value)}
                               placeholder="e.g. Junior Team U-12"
-                              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-orange-500"
+                              className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-orange-500"
                           />
                       </div>
                       <div>
@@ -638,7 +672,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                               <select 
                                 value={newSectionStart} 
                                 onChange={(e) => setNewSectionStart(Number(e.target.value))}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold"
+                                className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold"
                               >
                                   {Array.from({length: 14}, (_, i) => i + 9).map(h => (
                                       <option key={h} value={h}>{h}:00</option>
@@ -650,7 +684,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                               <select 
                                 value={newSectionDuration} 
                                 onChange={(e) => setNewSectionDuration(Number(e.target.value))}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold"
+                                className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-bold"
                               >
                                   <option value={1}>1 hr</option>
                                   <option value={2}>2 hrs</option>
@@ -670,18 +704,18 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {sections.map(section => (
-                      <div key={section.id} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm relative overflow-hidden">
+                      <div key={section.id} className="bg-white/80 backdrop-blur-md rounded-2xl p-5 border border-white/50 shadow-sm relative overflow-hidden">
                           <div className="absolute top-0 right-0 w-16 h-16 bg-orange-50 rounded-bl-full -mr-8 -mt-8"></div>
                           <h4 className="font-bold text-slate-900 text-lg mb-2 relative z-10">{section.name}</h4>
                           <div className="flex gap-1 mb-3 relative z-10">
                               {section.days.map(d => (
-                                  <span key={d} className="text-[10px] font-bold bg-slate-100 text-slate-500 px-2 py-1 rounded">
+                                  <span key={d} className="text-[10px] font-bold bg-white/50 text-slate-500 px-2 py-1 rounded">
                                       {t.weekDays[d as keyof typeof t.weekDays]}
                                   </span>
                               ))}
                           </div>
                           <div className="flex justify-between items-center relative z-10">
-                              <span className="text-sm font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">
+                              <span className="text-sm font-bold text-orange-600 bg-orange-50/50 px-2 py-1 rounded-lg">
                                   {section.startHour}:00 - {section.startHour + section.duration}:00
                               </span>
                               <button 
@@ -702,7 +736,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
           </div>
       ) : activeTab === 'announcements' ? (
           <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
-               <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200">
+               <div className="bg-white/80 backdrop-blur-md rounded-[2rem] p-6 shadow-sm border border-white/50">
                   <h3 className="text-lg font-bold text-slate-900 mb-4">{t.postAnnouncement}</h3>
                   
                   <div className="mb-4">
@@ -710,7 +744,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                       <select 
                         value={targetSectionId}
                         onChange={(e) => setTargetSectionId(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-pink-500"
+                        className="w-full bg-slate-50/50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-pink-500"
                       >
                           <option value="all">{t.allParents}</option>
                           {sections.map(s => (
@@ -723,7 +757,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                     value={announcementText}
                     onChange={(e) => setAnnouncementText(e.target.value)}
                     placeholder={t.typeAnnouncement}
-                    className="w-full h-32 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none mb-4"
+                    className="w-full h-32 bg-slate-50/50 border border-slate-200 rounded-xl px-4 py-3 text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-pink-500 resize-none mb-4"
                   />
                   <button 
                     onClick={handlePostAnnouncement}
@@ -733,7 +767,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                       {t.chatSend}
                   </button>
                </div>
-               <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm text-blue-800">
+               <div className="bg-blue-50/80 p-4 rounded-xl border border-blue-100 text-sm text-blue-800 backdrop-blur-sm">
                    ℹ️ {lang === 'az' ? 'Burada yazılan mesajlar dərhal bütün valideynlərin telefonunda görünəcək.' : (lang === 'ru' ? 'Сообщения, написанные здесь, мгновенно появятся у всех родителей.' : 'Messages posted here will instantly appear for all parents.')}
                </div>
           </div>
@@ -741,8 +775,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
         <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
                 {stats.map((stat, idx) => (
-                <div key={idx} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-slate-50 rounded-bl-[4rem] -mr-4 -mt-4 z-0"></div>
+                <div key={idx} className="bg-white/80 backdrop-blur-md rounded-2xl p-6 shadow-sm border border-white/50 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-white/50 rounded-bl-[4rem] -mr-4 -mt-4 z-0"></div>
                     <div className="relative z-10">
                         <div className="flex items-center justify-between mb-4">
                         <h3 className="text-slate-500 font-bold text-xs uppercase tracking-wider">{stat.title}</h3>
@@ -787,16 +821,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                 </div>
             </div>
 
-            <div className="bg-white rounded-[2rem] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden min-h-[300px]">
-                <div className="px-6 py-6 border-b border-slate-100 flex justify-between items-center">
+            <div className="bg-white/80 backdrop-blur-md rounded-[2rem] shadow-xl shadow-slate-200/50 border border-white/50 overflow-hidden min-h-[300px]">
+                <div className="px-6 py-6 border-b border-slate-200/50 flex justify-between items-center">
                 <h3 className="font-bold text-slate-900 text-lg">
                     {activeTab === 'hourly' ? t.hourlyBookings : t.subscriptionBookings}
                 </h3>
-                <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-xs font-bold">{tableBookings.length} total</span>
+                <span className="bg-slate-100/50 text-slate-600 px-3 py-1 rounded-full text-xs font-bold">{tableBookings.length} total</span>
                 </div>
                 <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
-                    <thead className="text-xs text-slate-400 uppercase bg-slate-50/50">
+                    <thead className="text-xs text-slate-500 uppercase bg-slate-50/50">
                     <tr>
                         <th className="px-6 py-4 font-bold">{t.customer}</th>
                         <th className="px-6 py-4 font-bold">{t.date}</th>
@@ -808,7 +842,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                     {tableBookings.length > 0 ? tableBookings.sort((a,b) => b.id - a.id).map((booking) => (
-                        <tr key={booking.id} className="hover:bg-slate-50 transition-colors animate-in fade-in slide-in-from-left-2">
+                        <tr key={booking.id} className="hover:bg-slate-50/50 transition-colors animate-in fade-in slide-in-from-left-2">
                         <td className="px-6 py-4 font-bold text-slate-900">
                             <div className="flex items-center">
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mr-3 ${
@@ -827,7 +861,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ lang, managedCourtId, a
                         <td className="px-6 py-4 text-slate-600 font-medium whitespace-nowrap">
                             {booking.dateStr}
                         </td>
-                        <td className="px-6 py-4 text-slate-600 font-medium bg-slate-50/50 rounded-lg whitespace-nowrap">{booking.time}</td>
+                        <td className="px-6 py-4 text-slate-600 font-medium bg-white/50 rounded-lg whitespace-nowrap">{booking.time}</td>
                         <td className="px-6 py-4 font-black text-slate-900">{booking.amount} ₼</td>
                         <td className="px-6 py-4">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${

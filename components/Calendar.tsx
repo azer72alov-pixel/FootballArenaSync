@@ -77,9 +77,9 @@ const Calendar: React.FC<CalendarProps> = ({ selectedDate, onDateChange, lang, b
           onClick={() => onDateChange(date)}
           className={`h-10 w-10 rounded-full flex flex-col items-center justify-center text-sm transition-all relative
             ${isSelected ? 'bg-indigo-600 text-white font-bold shadow-lg shadow-indigo-200 transform scale-110' : ''}
-            ${!isSelected && !isPast ? 'hover:bg-slate-100 text-slate-700 hover:scale-105' : ''}
-            ${isPast ? 'text-slate-300 cursor-not-allowed' : ''}
-            ${isToday && !isSelected ? 'text-indigo-600 font-bold border-2 border-indigo-100' : ''}
+            ${!isSelected && !isPast ? 'hover:bg-white/50 text-slate-700 hover:scale-105' : ''}
+            ${isPast ? 'text-slate-400 cursor-not-allowed opacity-60' : ''}
+            ${isToday && !isSelected ? 'text-indigo-600 font-bold border-2 border-indigo-200' : ''}
           `}
         >
           {d}
@@ -95,7 +95,7 @@ const Calendar: React.FC<CalendarProps> = ({ selectedDate, onDateChange, lang, b
   };
 
   return (
-    <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-6 h-full flex flex-col">
+    <div className="bg-white/80 backdrop-blur-md rounded-[2rem] shadow-sm border border-white/50 p-6 h-full flex flex-col">
       <div className="flex items-center justify-between mb-6">
         <h3 className="text-lg font-bold text-slate-900 capitalize flex items-center">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -103,7 +103,7 @@ const Calendar: React.FC<CalendarProps> = ({ selectedDate, onDateChange, lang, b
             </svg>
             {monthNames[lang][currentMonth.getMonth()]} {currentMonth.getFullYear()}
         </h3>
-        <div className="flex space-x-1 bg-slate-50 p-1 rounded-xl">
+        <div className="flex space-x-1 bg-white/50 p-1 rounded-xl">
           <button onClick={handlePrev} disabled={currentMonthIndex === 0} className="p-2 rounded-lg hover:bg-white hover:shadow-sm disabled:opacity-30 transition-all">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -119,7 +119,7 @@ const Calendar: React.FC<CalendarProps> = ({ selectedDate, onDateChange, lang, b
 
       <div className="grid grid-cols-7 gap-1 text-center mb-3">
         {dayNames.map(day => (
-          <div key={day} className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+          <div key={day} className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
             {day}
           </div>
         ))}
@@ -130,7 +130,7 @@ const Calendar: React.FC<CalendarProps> = ({ selectedDate, onDateChange, lang, b
       
       {/* Legend for Calendar */}
       {bookedDates && bookedDates.size > 0 && (
-          <div className="mt-4 flex items-center justify-center space-x-2 text-[10px] text-slate-400 font-medium">
+          <div className="mt-4 flex items-center justify-center space-x-2 text-[10px] text-slate-500 font-medium">
               <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
               <span>Has Bookings</span>
           </div>

@@ -24,10 +24,10 @@ const CourtCard: React.FC<CourtCardProps> = ({ court, isSelected, onSelect, lang
   return (
     <div 
       onClick={() => onSelect(court)}
-      className={`group relative overflow-hidden rounded-[2rem] cursor-pointer transition-all duration-300 border flex flex-col h-full bg-white ${
+      className={`group relative overflow-hidden rounded-[2rem] cursor-pointer transition-all duration-300 border flex flex-col h-full bg-white/75 backdrop-blur-md ${
         isSelected 
-        ? 'border-indigo-600 ring-4 ring-indigo-50 shadow-2xl transform -translate-y-1' 
-        : 'border-slate-100 hover:shadow-xl hover:border-slate-200 hover:-translate-y-1'
+        ? 'border-indigo-600 ring-4 ring-indigo-50/50 shadow-2xl transform -translate-y-1' 
+        : 'border-white/40 hover:shadow-xl hover:border-white/60 hover:-translate-y-1'
       }`}
     >
       <div className="h-56 w-full relative shrink-0 overflow-hidden">
@@ -52,7 +52,7 @@ const CourtCard: React.FC<CourtCardProps> = ({ court, isSelected, onSelect, lang
         <div className="flex flex-col space-y-3 mb-4 mt-1">
           <div 
             onClick={handleMapClick}
-            className="flex items-start text-xs text-slate-500 font-medium hover:text-indigo-600 transition-colors w-fit p-1 -ml-1 rounded-lg hover:bg-indigo-50"
+            className="flex items-start text-xs text-slate-700 font-medium hover:text-indigo-600 transition-colors w-fit p-1 -ml-1 rounded-lg hover:bg-white/50"
             title={lang === 'az' ? 'Xəritədə bax' : (lang === 'ru' ? 'Открыть на карте' : 'View on map')}
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-indigo-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -62,23 +62,23 @@ const CourtCard: React.FC<CourtCardProps> = ({ court, isSelected, onSelect, lang
             <span className="truncate underline decoration-dotted underline-offset-2">{court.address}</span>
           </div>
           <div className="flex items-center gap-3">
-             <div className="bg-slate-50 px-2 py-1 rounded text-[10px] font-bold text-slate-500 uppercase">5-a-side</div>
-             <div className="bg-slate-50 px-2 py-1 rounded text-[10px] font-bold text-slate-500 uppercase">Synthetic</div>
+             <div className="bg-white/50 px-2 py-1 rounded text-[10px] font-bold text-slate-600 uppercase">5-a-side</div>
+             <div className="bg-white/50 px-2 py-1 rounded text-[10px] font-bold text-slate-600 uppercase">Synthetic</div>
           </div>
         </div>
 
-        <div className="mt-auto flex items-center justify-between pt-4 border-t border-slate-50">
+        <div className="mt-auto flex items-center justify-between pt-4 border-t border-slate-200/50">
           <div className="flex flex-col gap-0.5">
               <div className="flex items-baseline gap-1">
                   <span className="text-xl font-black text-indigo-600">{court.pricePerHour}₼</span>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t.perHour}</span>
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{t.perHour}</span>
               </div>
               <div className="flex items-baseline gap-1">
                   <span className="text-sm font-bold text-purple-600">{court.subscriptionPrice}₼</span>
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">{t.perMonth}</span>
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{t.perMonth}</span>
               </div>
           </div>
-          <button className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-indigo-600 group-hover:text-white'}`}>
+          <button className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${isSelected ? 'bg-indigo-600 text-white' : 'bg-white text-slate-400 hover:bg-indigo-600 hover:text-white shadow-sm'}`}>
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
             </svg>

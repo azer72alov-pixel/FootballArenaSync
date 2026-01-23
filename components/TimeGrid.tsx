@@ -21,9 +21,9 @@ const TimeGrid: React.FC<TimeGridProps> = ({ selectedHour, onHourSelect, lang, r
   ];
 
   return (
-    <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-6 h-full flex flex-col">
+    <div className="bg-white/80 backdrop-blur-md rounded-[2rem] shadow-sm border border-white/50 p-6 h-full flex flex-col">
       <h3 className="text-xl font-bold text-slate-900 mb-6 flex items-center">
-        <span className="bg-indigo-100 text-indigo-600 p-2 rounded-lg mr-3">
+        <span className="bg-indigo-100/50 text-indigo-600 p-2 rounded-lg mr-3 border border-indigo-100">
            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
         </span>
         {t.availableTimes}
@@ -33,9 +33,9 @@ const TimeGrid: React.FC<TimeGridProps> = ({ selectedHour, onHourSelect, lang, r
         {periods.map((period, idx) => (
           period.hours.length > 0 && (
             <div key={idx}>
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 ml-1 flex items-center">
+              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 ml-1 flex items-center">
                 {period.label}
-                <span className="ml-3 flex-grow h-px bg-slate-100"></span>
+                <span className="ml-3 flex-grow h-px bg-slate-200/50"></span>
               </h4>
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 {period.hours.map(hour => {
@@ -71,23 +71,23 @@ const TimeGrid: React.FC<TimeGridProps> = ({ selectedHour, onHourSelect, lang, r
                       // RESERVED STATES
                       if (isSubscription) {
                           // PURPLE for SUBSCRIPTIONS
-                          btnClass += "bg-purple-100 text-purple-600 border-purple-200 cursor-not-allowed opacity-90";
+                          btnClass += "bg-purple-100/80 text-purple-600 border-purple-200 cursor-not-allowed opacity-90";
                       } else if (isSection) {
                           // DARK ORANGE for SECTIONS (Booked)
-                          btnClass += "bg-orange-200 text-orange-700 border-orange-300 cursor-not-allowed opacity-90";
+                          btnClass += "bg-orange-200/80 text-orange-700 border-orange-300 cursor-not-allowed opacity-90";
                       } else {
                           // RED for ONE-TIME / HOURLY
-                          btnClass += "bg-red-100 text-red-500 border-red-200 cursor-not-allowed opacity-90";
+                          btnClass += "bg-red-100/80 text-red-500 border-red-200 cursor-not-allowed opacity-90";
                       }
                   } else {
                       // AVAILABLE STATES
                       if (isDaytime) {
                           // ORANGE for Morning/Afternoon
                           // Cursor default and opacity-80 to show it's "info only" and not clickable
-                          btnClass += "bg-orange-50 text-orange-600 border-orange-200 cursor-default opacity-80";
+                          btnClass += "bg-orange-50/50 text-orange-600 border-orange-200 cursor-default opacity-80";
                       } else {
                           // GREEN for Evening (Available & Clickable)
-                          btnClass += "bg-emerald-50 text-emerald-700 border-emerald-200 hover:border-emerald-400 hover:bg-emerald-100 hover:shadow-md";
+                          btnClass += "bg-emerald-50/50 text-emerald-700 border-emerald-200 hover:border-emerald-400 hover:bg-emerald-100 hover:shadow-md backdrop-blur-sm";
                       }
                   }
 
@@ -124,7 +124,7 @@ const TimeGrid: React.FC<TimeGridProps> = ({ selectedHour, onHourSelect, lang, r
         ))}
       </div>
       
-      <div className="mt-6 pt-4 border-t border-slate-100 flex flex-wrap gap-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider justify-center">
+      <div className="mt-6 pt-4 border-t border-slate-200/50 flex flex-wrap gap-4 text-[10px] font-bold text-slate-500 uppercase tracking-wider justify-center">
           <div className="flex items-center">
               <div className="w-2 h-2 bg-red-400 rounded-full mr-1.5"></div>
               {t.oneTime}

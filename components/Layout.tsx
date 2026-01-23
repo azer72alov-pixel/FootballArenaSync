@@ -105,12 +105,24 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
   }
 
   return (
-    <div className="min-h-screen pb-[env(safe-area-inset-bottom)] transition-colors duration-200" style={{ backgroundColor: 'var(--tg-theme-bg-color, #f8fafc)' }}>
+    <div className="min-h-screen pb-[env(safe-area-inset-bottom)] relative isolate">
+      {/* --- BACKGROUND TEXTURE --- */}
+      <div className="fixed inset-0 z-[-1] pointer-events-none">
+          {/* Brighter Green Grass Image */}
+          <img 
+            src="https://images.unsplash.com/photo-1589487391730-58f20eb2c308?q=80&w=2000&auto=format&fit=crop" 
+            alt="Grass Background" 
+            className="w-full h-full object-cover"
+          />
+          {/* Very light emerald tint to make it pop, no white wash */}
+          <div className="absolute inset-0 bg-emerald-600/10 mix-blend-overlay"></div>
+      </div>
+
       {/* --- QR MODAL --- */}
       {isQrModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-             <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onClick={() => setIsQrModalOpen(false)}></div>
-             <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-sm shadow-2xl relative z-10 animate-in zoom-in-95 duration-200 flex flex-col items-center text-center">
+             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsQrModalOpen(false)}></div>
+             <div className="bg-white/90 backdrop-blur-xl rounded-[2.5rem] p-8 w-full max-w-sm shadow-2xl relative z-10 animate-in zoom-in-95 duration-200 flex flex-col items-center text-center border border-white/50">
                  <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-6 text-white shadow-sm ${qrType === 'telegram' ? 'bg-indigo-500' : 'bg-emerald-500'}`}>
                     {qrType === 'telegram' ? (
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -151,10 +163,9 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
       )}
 
       <nav 
-        className="sticky top-0 z-50 backdrop-blur-md border-b px-4 py-3 shadow-sm pt-[env(safe-area-inset-top)] transition-colors duration-200"
+        className="sticky top-0 z-50 backdrop-blur-md border-b border-white/20 px-4 py-3 shadow-sm pt-[env(safe-area-inset-top)] transition-colors duration-200"
         style={{ 
-            backgroundColor: 'rgba(255, 255, 255, 0.95)',
-            borderColor: '#e2e8f0'
+            backgroundColor: 'rgba(255, 255, 255, 0.7)',
         }}
       >
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -165,7 +176,7 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
                       e.stopPropagation();
                       onBack?.();
                   }}
-                  className="mr-2 md:mr-3 p-1.5 md:p-2 rounded-xl bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors shadow-sm"
+                  className="mr-2 md:mr-3 p-1.5 md:p-2 rounded-xl bg-white/50 text-slate-600 hover:bg-white/80 transition-colors shadow-sm"
                >
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
@@ -174,12 +185,12 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
             )}
 
             <div className="flex items-center space-x-2 cursor-pointer select-none" onClick={handleLogoTap}>
-                <div className="bg-indigo-600 p-1.5 md:p-2 rounded-lg transition-colors">
+                <div className="bg-indigo-600 p-1.5 md:p-2 rounded-lg transition-colors shadow-lg shadow-indigo-500/20">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 md:h-6 md:w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                 </svg>
                 </div>
-                <span className="text-lg md:text-xl font-bold tracking-tight text-slate-900">
+                <span className="text-lg md:text-xl font-bold tracking-tight text-slate-900 drop-shadow-sm">
                 ArenaSync
                 </span>
             </div>
@@ -202,7 +213,7 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
             {/* Android Link Button */}
             <button 
                 onClick={() => { setQrType('android'); setIsQrModalOpen(true); }}
-                className="bg-slate-100 hover:bg-emerald-100 text-slate-600 hover:text-emerald-600 p-2 rounded-xl transition-colors"
+                className="bg-white/50 hover:bg-emerald-100 text-slate-600 hover:text-emerald-600 p-2 rounded-xl transition-colors backdrop-blur-sm"
                 title={t.androidApp}
             >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
@@ -213,7 +224,7 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
             {/* QR Button (Telegram) */}
             <button 
                 onClick={() => { setQrType('telegram'); setIsQrModalOpen(true); }}
-                className="bg-slate-100 hover:bg-slate-200 text-slate-600 p-2 rounded-xl transition-colors"
+                className="bg-white/50 hover:bg-white text-slate-600 p-2 rounded-xl transition-colors backdrop-blur-sm"
                 title={t.shareApp}
             >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -221,7 +232,7 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
                 </svg>
             </button>
 
-            <div className="p-1 rounded-xl flex bg-slate-100">
+            <div className="p-1 rounded-xl flex bg-white/50 backdrop-blur-sm">
               <button 
                 onClick={() => onLangChange('az')}
                 className={`px-2 py-1 md:px-3 md:py-1.5 rounded-lg text-[10px] md:text-xs font-bold transition-all ${lang === 'az' ? 'shadow-sm text-indigo-600 bg-white' : 'text-slate-500 bg-transparent'}`}
@@ -257,7 +268,7 @@ const Layout: React.FC<LayoutProps> = ({ children, lang, onLangChange, onSecretT
       )}
 
       {!isTg && (
-        <footer className="bg-slate-900 text-white py-12 px-4 mt-12">
+        <footer className="bg-slate-900/80 backdrop-blur-md text-white py-12 px-4 mt-12 rounded-t-[2.5rem]">
             <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 text-center md:text-left">
             <div>
                 <h3 className="text-xl font-bold mb-4">ArenaSync</h3>
