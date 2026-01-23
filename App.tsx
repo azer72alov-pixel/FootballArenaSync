@@ -19,6 +19,13 @@ export const formatDateLocal = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
+// Manual Month Names to avoid "M01" issues in some locales/browsers
+const MONTH_NAMES = {
+    az: ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'İyun', 'İyul', 'Avq', 'Sen', 'Okt', 'Noy', 'Dek'],
+    ru: ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'],
+    en: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+};
+
 const App: React.FC = () => {
   const tg = window.Telegram?.WebApp;
   const [lang, setLang] = useState<'az' | 'ru' | 'en'>('az');
@@ -68,9 +75,17 @@ const App: React.FC = () => {
 
   const t = TRANSLATIONS[lang];
 
+  // Helper for safe Haptic Feedback
+  const triggerHaptic = (type: 'success' | 'error' | 'warning') => {
+      // @ts-ignore
+      if (tg && tg.HapticFeedback && tg.isVersionAtLeast && tg.isVersionAtLeast('6.1')) {
+          tg.HapticFeedback.notificationOccurred(type);
+      }
+  };
+
   const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
       setToast({ message, type });
-      if (tg && tg.HapticFeedback) tg.HapticFeedback.notificationOccurred(type === 'error' ? 'error' : 'success');
+      if (type !== 'info') triggerHaptic(type === 'error' ? 'error' : 'success');
       setTimeout(() => setToast(null), 3500);
   };
 
@@ -381,7 +396,7 @@ const App: React.FC = () => {
         setBookingSuccess(true);
         if (tg) {
             tg.MainButton.hide();
-            tg.HapticFeedback.notificationOccurred('success');
+            triggerHaptic('success');
         }
     } catch (e) {
         setIsBooking(false);
@@ -478,7 +493,10 @@ const App: React.FC = () => {
       for(let i=0; i < selectedSubscription.hours; i++) {
            const d = new Date(selectedDate);
            d.setDate(selectedDate.getDate() + (i * 7));
-           dates.push(d.toLocaleDateString(lang === 'az' ? 'az-AZ' : (lang === 'ru' ? 'ru-RU' : 'en-US'), {day: 'numeric', month: 'short'}));
+           // Manual formatting replacing toLocaleDateString to fix "M01" bug
+           const day = d.getDate();
+           const month = MONTH_NAMES[lang][d.getMonth()];
+           dates.push(`${day} ${month}`);
       }
       return dates;
   }
@@ -541,11 +559,11 @@ const App: React.FC = () => {
 
       {view === 'admin_login' && (
         <div className="flex flex-col items-center justify-center min-h-[60vh] animate-in fade-in slide-in-from-bottom-4">
-            <div className="bg-white p-8 rounded-[2rem] shadow-xl w-full max-w-sm text-center border border-slate-100">
+            <div className="bg-white/80 backdrop-blur-md p-8 rounded-[2rem] shadow-xl w-full max-w-sm text-center border border-white/50">
                 <h2 className="text-2xl font-bold text-slate-900 mb-2">{t.partnerAccess}</h2>
-                <p className="text-slate-400 text-sm mb-6">{t.enterPin}</p>
+                <p className="text-slate-500 text-sm mb-6">{t.enterPin}</p>
                 <input type="password" value={adminPin} onChange={(e) => setAdminPin(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-center text-2xl tracking-widest font-bold text-slate-900 mb-6"
+                    className="w-full bg-white/50 border border-slate-200 rounded-xl px-4 py-3 text-center text-2xl tracking-widest font-bold text-slate-900 mb-6 focus:bg-white"
                     placeholder="••••••" maxLength={6} />
                 <button onClick={handlePartnerLogin} className="w-full bg-slate-900 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-indigo-600 transition-colors">
                     {lang === 'az' ? 'Daxil ol' : (lang === 'ru' ? 'Войти' : 'Login')}
@@ -556,7 +574,7 @@ const App: React.FC = () => {
 
       {view === 'super_admin_login' && (
         <div className="flex flex-col items-center justify-center min-h-[60vh] animate-in fade-in">
-            <div className="bg-slate-900 p-8 rounded-[2rem] shadow-2xl w-full max-w-sm text-center border border-slate-800 relative overflow-hidden">
+            <div className="bg-slate-900/90 backdrop-blur-md p-8 rounded-[2rem] shadow-2xl w-full max-w-sm text-center border border-slate-800 relative overflow-hidden">
                 <h2 className="text-2xl font-black text-white mb-2 relative z-10">SYSTEM OVERRIDE</h2>
                 <input type="password" value={adminPin} onChange={(e) => setAdminPin(e.target.value)}
                     className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-center text-2xl tracking-widest font-bold text-white mb-6 relative z-10"
@@ -602,23 +620,23 @@ const App: React.FC = () => {
                     />
                 ))
              ) : (
-                <div className="col-span-3 text-center py-12 text-slate-400">
+                <div className="col-span-3 text-center py-12 text-slate-500 font-bold bg-white/50 backdrop-blur-sm rounded-2xl">
                     <p>{t.noResults}</p>
                 </div>
              )}
           </div>
           
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-200">
+          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-white/20">
               <button 
                 onClick={() => setIsNewsModalOpen(true)}
-                className="py-4 rounded-2xl bg-indigo-50 text-indigo-600 text-sm font-bold flex flex-col items-center justify-center gap-2 hover:bg-indigo-100 transition-colors"
+                className="py-4 rounded-2xl bg-white/80 backdrop-blur-md text-indigo-600 text-sm font-bold flex flex-col items-center justify-center gap-2 hover:bg-white transition-colors shadow-sm"
               >
                 <span>{t.parentAccess}</span>
               </button>
 
               <button 
                 onClick={() => { setView('admin_login'); setAdminPin(''); }} 
-                className="py-4 rounded-2xl bg-slate-100 text-slate-500 text-sm font-bold flex flex-col items-center justify-center gap-2 hover:bg-slate-200 transition-colors opacity-70 hover:opacity-100"
+                className="py-4 rounded-2xl bg-white/50 backdrop-blur-md text-slate-600 text-sm font-bold flex flex-col items-center justify-center gap-2 hover:bg-white/80 transition-colors shadow-sm"
               >
                 <span>{t.partnerAccess}</span>
               </button>
@@ -626,7 +644,7 @@ const App: React.FC = () => {
               {showProfileButton && (
                   <button 
                     onClick={() => { setTempName(userName); setIsNameModalOpen(true); }}
-                    className="col-span-2 py-3 rounded-2xl bg-white border border-slate-200 text-slate-500 text-xs font-bold flex items-center justify-center gap-2 hover:bg-slate-50"
+                    className="col-span-2 py-3 rounded-2xl bg-white/60 backdrop-blur-md border border-white/50 text-slate-600 text-xs font-bold flex items-center justify-center gap-2 hover:bg-white/80 transition-colors"
                   >
                      <span>{lang === 'az' ? 'Profil: ' : (lang === 'ru' ? 'Профиль: ' : 'Profile: ')} {userName}</span>
                   </button>
@@ -638,22 +656,22 @@ const App: React.FC = () => {
       {view === 'booking' && selectedCourt && (
         <div className="animate-in fade-in slide-in-from-right-8 duration-500 pb-32">
             {bookingSuccess ? (
-                <div className="flex flex-col items-center justify-center py-20 text-center">
+                <div className="flex flex-col items-center justify-center py-20 text-center bg-white/80 backdrop-blur-md rounded-[3rem] shadow-xl border border-white/50">
                     <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-emerald-200 text-emerald-600">
                         <svg className="h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
                     </div>
-                    <h2 className="text-3xl font-black mb-4">{t.confirmed}</h2>
-                    <button onClick={handleBack} className="text-indigo-600 font-bold">{t.backToDashboard}</button>
+                    <h2 className="text-3xl font-black mb-4 text-slate-900">{t.confirmed}</h2>
+                    <button onClick={handleBack} className="text-indigo-600 font-bold hover:underline">{t.backToDashboard}</button>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                     <div className="lg:col-span-5 space-y-6">
-                        <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-slate-200">
+                        <div className="bg-white/80 backdrop-blur-md rounded-[2rem] p-6 shadow-sm border border-white/50">
                              <div className="flex items-start justify-between mb-4">
                                 <h2 className="text-2xl font-black text-slate-900 leading-tight pr-4">{selectedCourt.name}</h2>
                              </div>
                              
-                             <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
+                             <div className="flex bg-slate-100/50 p-1 rounded-xl mb-6">
                                  <button 
                                     onClick={() => { setBookingType('hourly'); setSelectedSubscription(null); }}
                                     className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${bookingType === 'hourly' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}
@@ -670,7 +688,7 @@ const App: React.FC = () => {
 
                              {bookingType === 'subscription' && !selectedSubscription && (
                                  <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
-                                     <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider">{t.chooseYourPlan}</h3>
+                                     <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider">{t.chooseYourPlan}</h3>
                                      {SUBSCRIPTIONS.map(sub => (
                                          <div 
                                             key={sub.id}
@@ -690,7 +708,7 @@ const App: React.FC = () => {
                              )}
 
                              {bookingType === 'subscription' && selectedSubscription && (
-                                 <div className="bg-purple-600 text-white p-4 rounded-xl mb-4 flex justify-between items-center animate-in fade-in">
+                                 <div className="bg-purple-600 text-white p-4 rounded-xl mb-4 flex justify-between items-center animate-in fade-in shadow-lg shadow-purple-200">
                                      <div>
                                          <div className="text-xs opacity-75 uppercase font-bold">{t.subscription}</div>
                                          <div className="font-bold text-lg">{selectedSubscription.name}</div>
@@ -702,7 +720,7 @@ const App: React.FC = () => {
                              {(bookingType === 'hourly' || (bookingType === 'subscription' && selectedSubscription)) && (
                                 <div className="mt-4">
                                      {bookingStep === 'time' ? (
-                                        <button onClick={() => setBookingStep('date')} className="w-full py-3 border border-slate-200 bg-slate-50 text-slate-600 rounded-xl font-bold hover:bg-slate-100 transition-colors">
+                                        <button onClick={() => setBookingStep('date')} className="w-full py-3 border border-slate-200/50 bg-white/50 text-slate-600 rounded-xl font-bold hover:bg-white/80 transition-colors">
                                             {t.changeDate}
                                         </button>
                                      ) : (
